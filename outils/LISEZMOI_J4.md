@@ -75,8 +75,8 @@ Si la liste ne contient aucun pilote Access :
 python -m pytest -q -rs
 ```
 
-**Résultat attendu :** `238 passed` et **aucune ligne `SKIPPED`**.
-(Sous Linux, ces mêmes tests donnent « 226 passed, 12 skipped » : les 12 sautés sont les tests d'intégration Access, qui ne peuvent tourner que chez vous.)
+**Résultat attendu :** `242 passed` et **aucune ligne `SKIPPED`**.
+(Sous Linux, ces mêmes tests donnent « 230 passed, 12 skipped » : les 12 sautés sont les tests d'intégration Access, qui ne peuvent tourner que chez vous.)
 Si des tests sont sautés, la raison s'affiche (`pyodbc`/`pywin32` absent, pilote invisible, Python 64 bits) : corrigez et relancez.
 
 ## 6. Créer une base synthétique
@@ -178,6 +178,7 @@ python outils\diagnostic.py --config config.json --photo --profil
 Diagnostic terminé : tout est OK.
 ```
 
+- Les clés primaires attendues sont lues même si le pilote ne gère pas `SQLPrimaryKeys` (le journal contient alors une ligne « clé primaire lue via les index uniques »).
 - Le nombre de relations candidates peut différer de 7 : plusieurs sont de fausses relations connues (AMB-016), c'est normal.
 - Ouvrez `diagnostic_sorties\profil\profil.html` dans le navigateur : tables, clés candidates et graphe doivent s'afficher, **sans connexion internet**.
 - Ouvrez `journal.log` (dossier courant) : vous devez y voir la ligne `Connexion en lecture seule : DRIVER=...;ReadOnly=1;Exclusive=0;`.
@@ -284,6 +285,7 @@ Notez : la version Jet, le nombre de tables et de lignes, **le temps de photo** 
 | `Mot de passe incorrect` | `mot_de_passe` faux ou absent | corriger `config.json` |
 | `Droits insuffisants` | groupe de travail (`.mdw`) ou utilisateur mal renseigné | vérifier `fichier_mdw`, `utilisateur` |
 | `RÉINITIALISATION REFUSÉE … .ldb` | la base est utilisée, ou un arrêt brutal a laissé le fichier | fermer le logiciel sur tous les postes ; vérifier avant de supprimer le `.ldb` à la main |
+| `clé primaire : aucune` pour une table qui en a une (étape 9), ou test de clé primaire en échec | le pilote Jet ne gère pas `SQLPrimaryKeys` ; le traceur lit alors l'index « PrimaryKey » (AMB-028) | `python outils\sonder_pilote.py <base.mdb>` et m'envoyer la sortie |
 | La connexion échoue sans raison claire sur un partage | le moteur Jet doit **créer** le fichier `.ldb` à côté de la base | donner le droit d'écriture sur le **dossier** (ce n'est pas une écriture dans la base) |
 
 À savoir : pendant que le traceur est connecté, Windows/Jet crée et supprime tout seul le petit fichier `.ldb` à côté de la base (verrou partagé). Le fichier `.mdb` lui-même n'est jamais modifié : c'est ce que vérifie le test de l'étape 10.

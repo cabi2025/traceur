@@ -212,3 +212,62 @@ def test_version_jet_de(tmp_path: Path) -> None:
     assert version_jet_de(str(tmp_path / "absent.mdb")) is None
     (tmp_path / "x.mdb").write_bytes(b"abc")
     assert version_jet_de(str(tmp_path / "x.mdb")) is None
+
+
+# --- clé primaire avec le pilote Jet (SQLPrimaryKeys non pris en charge, AMB-028) -------------
+
+@pytest.fixture
+def source_jet(base: sqlite3.Connection) -> tuple[SourceAccess, FauxPyodbc]:
+    base.execute("CREATE TABLE FACTURES (NUM INTEGER PRIMARY KEY, CODE TEXT, X INTEGER)")
+    base.execute("CREATE UNIQUE INDEX idx_code ON FACTURES (CODE)")  # index unique qui n'est PAS la clé
+    base.execute("CREATE TABLE LIGNES (NUM_FACT INTEGER, RANG INTEGER, PRIMARY KEY (RANG, NUM_FACT))")
+    base.execute("CREATE TABLE SANS_CLE (A TEXT)")
+    faux = FauxPyodbc(base, pk_supportee=False)
+    return SourceAccess(ParametresAccess(r"C:\t.mdb"), faux), faux
+
+
+def test_cle_primaire_lue_via_les_index_quand_le_pilote_ne_gere_pas_sqlprimarykeys(
+    source_jet: tuple[SourceAccess, FauxPyodbc],
+) -> None:
+    source, _ = source_jet
+    assert source.schema("FACTURES").cle_primaire == ("NUM",)  # pas l'index unique idx_code
+    assert source.schema("LIGNES").cle_primaire == ("RANG", "NUM_FACT")  # ordre de l'index
+    assert source.schema("SANS_CLE").cle_primaire == ()
+
+
+def test_sqlprimarykeys_n_est_essaye_qu_une_fois(
+    source_jet: tuple[SourceAccess, FauxPyodbc], caplog: pytest.LogCaptureFixture
+) -> None:
+    source, faux = source_jet
+    caplog.set_level(logging.INFO, "traceur")
+    for _ in range(3):
+        for table in ("FACTURES", "LIGNES", "SANS_CLE"):
+            source.schema(table)
+    assert faux.connexions[0].appels_primary_keys == 1
+    assert caplog.text.count("ne gère pas SQLPrimaryKeys") == 1
+    assert "WARNING" not in caplog.text  # plus de message d'alerte répété
+
+
+def test_sans_primarykeys_ni_statistiques_cle_vide_et_une_seule_alerte(
+    base: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    base.execute("CREATE TABLE A (ID INTEGER PRIMARY KEY)")
+    base.execute("CREATE TABLE B (ID INTEGER PRIMARY KEY)")
+    source = SourceAccess(ParametresAccess(r"C:\t.mdb"),
+                          FauxPyodbc(base, pk_supportee=False, statistiques_supportees=False))
+    caplog.set_level(logging.WARNING, "traceur")
+    assert source.schema("A").cle_primaire == () and source.schema("B").cle_primaire == ()
+    assert caplog.text.count("clés candidates du profilage") == 1
+
+
+def test_profil_et_diff_avec_pilote_sans_sqlprimarykeys(
+    source_jet: tuple[SourceAccess, FauxPyodbc], base: sqlite3.Connection
+) -> None:
+    source, _ = source_jet
+    base.executemany("INSERT INTO FACTURES VALUES (?,?,?)", [(1, "a", 1), (2, "b", 1)])
+    profil = profiler(source)
+    assert profil.table("FACTURES").cle_primaire == ("NUM",)
+    avant = prendre_instantane(source)
+    base.execute("INSERT INTO FACTURES VALUES (3, 'c', 2)")
+    (t,) = comparer_instantanes(avant, prendre_instantane(source)).changements
+    assert t.type_cle == "primaire" and [i.cle for i in t.inserts] == [{"NUM": 3}]

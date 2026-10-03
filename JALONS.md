@@ -71,10 +71,11 @@
 - [x] `outils/generer_mdb_test.py` (ADOX/pywin32) : base synthétique avec tables avec et sans PK, montants, dates
 - [ ] Test d'intégration sous Windows : diff sur une modification faite par un script tiers pendant que la base est ouverte
 
-> 2026-10-03 — **Code livré, exécution Windows en attente.** Tout ce qui est testable sous Linux est vert (226 passés, 12 sautés = tests d'intégration Access, `mypy --strict traceur/moteur` sans erreur). La case « Test d'intégration sous Windows » reste à cocher après exécution de `outils/LISEZMOI_J4.md` (étapes 5, 9, 10).
+> 2026-10-03 — **Code livré, exécution Windows en attente.** Tout ce qui est testable sous Linux est vert (230 passés, 12 sautés = tests d'intégration Access, `mypy --strict traceur/moteur` sans erreur). La case « Test d'intégration sous Windows » reste à cocher après exécution de `outils/LISEZMOI_J4.md` (étapes 5, 9, 10).
 > Livrés : `traceur/config.py`, `traceur/securite.py`, `traceur/sources/access.py`, `outils/{generer_mdb_test,version_jet,simuler_logiciel,diagnostic}.py`, `tests/test_integration_access.py`.
 > Ambiguïtés ouvertes : AMB-023 à AMB-027 (dont AMB-027, cache Jet, à mesurer sur Windows).
 > Premier essai Windows (2026-10-03) : 224 tests unitaires + `test_python_32_bits` verts (225 passés) ; 11 tests d'intégration en échec à cause d'un seul défaut du générateur : la colonne `NOTE` (mot réservé Jet, synonyme de MEMO) → corrigé (colonne `COMMENTAIRE`, identifiants entre crochets). Nouvel essai demandé.
+> Deuxième essai Windows : 235 passés, 3 échoués. Cause principale : le pilote Jet ne gère pas `SQLPrimaryKeys` (IM001) → clé primaire lue via `SQLStatistics`, index « PrimaryKey » (AMB-028) ; un test d'intégration attendait à tort `lignes_ajoutees` pour `LIGNES` alors que sa clé candidate donne des `inserts` → corrigé. `outils/sonder_pilote.py` ajouté pour diagnostiquer.
 
 **Acceptation :** intégration verte sous Windows 32 bits ; preuve qu'aucune écriture n'est possible via la connexion du traceur (tentative d'INSERT refusée) ; mot de passe absent des logs.
 

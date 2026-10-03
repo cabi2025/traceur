@@ -13,6 +13,7 @@ SQL_WCHAR = -8
 Table = namedtuple("Table", "table_name table_type")
 ColonneODBC = namedtuple("ColonneODBC", "column_name type_name ordinal_position")
 CleODBC = namedtuple("CleODBC", "column_name key_seq")
+Statistique = namedtuple("Statistique", "index_name ordinal_position column_name non_unique")
 
 
 class Error(Exception):
@@ -35,8 +36,25 @@ class FauxCurseur:
         return [ColonneODBC(i[1], i[2], i[0] + 1) for i in infos]
 
     def primaryKeys(self, table: str) -> list[CleODBC]:
+        self._c.appels_primary_keys += 1
+        if not self._c.pk_supportee:
+            raise Error("('IM001', '[IM001] [Microsoft][Gestionnaire de pilotes ODBC] Le pilote ne prend pas "
+                        "cette fonction en charge (0) (SQLPrimaryKeys)')")
         infos = self._c.sqlite.execute(f'PRAGMA table_info("{table}")').fetchall()
         return [CleODBC(i[1], i[5]) for i in infos if i[5] > 0]
+
+    def statistics(self, table: str, unique: bool = False, quick: bool = True) -> list[Statistique]:
+        """Imite le pilote Jet : l'index de clé primaire s'appelle « PrimaryKey »."""
+        if not self._c.statistiques_supportees:
+            raise Error("('IM001', '[IM001] SQLStatistics non pris en charge')")
+        lignes: list[Statistique] = [Statistique(None, 0, None, None)]  # ligne d'effectif de table
+        infos = self._c.sqlite.execute(f'PRAGMA table_info("{table}")').fetchall()
+        lignes += [Statistique("PrimaryKey", i[5], i[1], 0) for i in infos if i[5] > 0]
+        for _, nom, unique_, *_ in self._c.sqlite.execute(f'PRAGMA index_list("{table}")').fetchall():
+            if unique_ and not nom.startswith("sqlite_autoindex"):
+                colonnes = self._c.sqlite.execute(f'PRAGMA index_info("{nom}")').fetchall()
+                lignes += [Statistique(nom, c[0] + 1, c[2], 0) for c in colonnes]
+        return lignes
 
     def execute(self, sql: str, *parametres: Any) -> FauxCurseur:
         if self._c.readonly and not sql.lstrip().upper().startswith("SELECT"):
@@ -68,6 +86,9 @@ class FausseConnexion:
         self.decodages: list[tuple[int, str]] = []
         self.encodage: str | None = None
         self.fermee = False
+        self.pk_supportee = True
+        self.statistiques_supportees = True
+        self.appels_primary_keys = 0
 
     def setdecoding(self, type_sql: int, encoding: str) -> None:
         self.decodages.append((type_sql, encoding))
@@ -96,7 +117,10 @@ class FauxPyodbc:
     SQL_WCHAR = SQL_WCHAR
 
     def __init__(self, sqlite_conn: sqlite3.Connection, pilotes: list[str] | None = None,
-                 erreur_connexion: str | None = None) -> None:
+                 erreur_connexion: str | None = None, pk_supportee: bool = True,
+                 statistiques_supportees: bool = True) -> None:
+        self._pk_supportee = pk_supportee
+        self._statistiques_supportees = statistiques_supportees
         self._sqlite = sqlite_conn
         self._pilotes = ["SQL Server", "Microsoft Access Driver (*.mdb)"] if pilotes is None else pilotes
         self._erreur = erreur_connexion
@@ -109,5 +133,7 @@ class FauxPyodbc:
         if self._erreur is not None:
             raise Error(self._erreur.replace("{chaine}", chaine))
         connexion = FausseConnexion(self._sqlite, chaine, readonly, autocommit)
+        connexion.pk_supportee = self._pk_supportee
+        connexion.statistiques_supportees = self._statistiques_supportees
         self.connexions.append(connexion)
         return connexion

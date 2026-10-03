@@ -23,6 +23,7 @@ journal = logging.getLogger("traceur.access")
 
 PILOTES_PREFERES = ("Microsoft Access Driver (*.mdb)", "Microsoft Access Driver (*.mdb, *.accdb)")
 TAILLE_LOT = 10_000
+NOM_INDEX_CLE_PRIMAIRE = "PrimaryKey"  # nom Access de l'index de clé primaire (AMB-028)
 
 
 class ErreurAccess(Exception):
@@ -147,6 +148,8 @@ class SourceAccess:
         self._parametres = parametres
         self.pilote = pilote or choisir_pilote(list(self._pyodbc.drivers()))
         self._secrets = parametres.secrets()
+        self._pk_par_statistiques = False
+        self._pk_illisible_signalee = False
         self._connexion = self._connecter()
 
     def _connecter(self) -> Any:
@@ -185,15 +188,45 @@ class SourceAccess:
         curseur = self._connexion.cursor()
         try:
             colonnes = sorted(curseur.columns(table=table), key=lambda c: c.ordinal_position)
-            cle: tuple[str, ...] = ()
-            try:
-                cles = sorted(curseur.primaryKeys(table=table), key=lambda k: k.key_seq)
-                cle = tuple(k.column_name for k in cles)
-            except self._pyodbc.Error as erreur:
-                journal.warning("Clé primaire illisible pour %s : %s", table, erreur)
+            cle = self._cle_primaire(curseur, table)
         finally:
             curseur.close()
         return SchemaTable(tuple(Colonne(c.column_name, str(c.type_name)) for c in colonnes), cle)
+
+    def _cle_primaire(self, curseur: Any, table: str) -> tuple[str, ...]:
+        """Clé primaire déclarée. Le pilote Jet n'implémente pas SQLPrimaryKeys (erreur IM001) :
+        on lit alors les index uniques (SQLStatistics) et on retient l'index « PrimaryKey », nom que
+        donne Access à la clé primaire (AMB-028). Sans clé lisible, le profilage fournit des clés
+        candidates (SPEC §6.3)."""
+        if not self._pk_par_statistiques:
+            try:
+                cles = sorted(curseur.primaryKeys(table=table), key=lambda k: k.key_seq)
+                return tuple(k.column_name for k in cles)
+            except self._pyodbc.Error as erreur:
+                if "IM001" not in str(erreur):
+                    journal.warning("Clé primaire illisible pour %s : %s", table, erreur)
+                    return ()
+                self._pk_par_statistiques = True
+                journal.info("Le pilote ne gère pas SQLPrimaryKeys : clé primaire lue via les index "
+                             "uniques (index « %s »).", NOM_INDEX_CLE_PRIMAIRE)
+        try:
+            index = [
+                (ligne.index_name, ligne.ordinal_position, ligne.column_name)
+                for ligne in curseur.statistics(table=table, unique=True)
+                if ligne.index_name and ligne.column_name
+            ]
+        except self._pyodbc.Error as erreur:
+            if not self._pk_illisible_signalee:
+                self._pk_illisible_signalee = True
+                journal.warning("Clés primaires illisibles (SQLStatistics non pris en charge : %s) : "
+                                "les clés candidates du profilage seront utilisées.", erreur)
+            return ()
+        cle = sorted((o, c) for nom, o, c in index if nom.casefold() == NOM_INDEX_CLE_PRIMAIRE.casefold())
+        if not cle:
+            autres = sorted({nom for nom, _, _ in index})
+            journal.debug("Table %s : aucun index « %s » (index uniques : %s).", table,
+                          NOM_INDEX_CLE_PRIMAIRE, ", ".join(autres) or "aucun")
+        return tuple(c for _, c in cle)
 
     def lire_lignes(self, table: str) -> Iterator[tuple[Any, ...]]:
         curseur = self._connexion.cursor()

@@ -110,7 +110,7 @@ Le moteur ne connaît que `SourceDonnees`. Les tests unitaires utilisent la sour
 
 ### 6.2 Instantané (F4)
 Pour chaque table non ignorée :
-- schéma : colonnes, types, clé primaire si déclarée ;
+- schéma : colonnes, types, clé primaire si déclarée (avec le pilote Jet, qui ne gère pas `SQLPrimaryKeys`, elle est lue via les index uniques : index « PrimaryKey », AMB-028 à confirmer) ;
 - `nb_lignes` et **empreinte de table** (hash stable de l'ensemble des empreintes de lignes, indépendant de l'ordre) ;
 - empreintes de lignes, et contenu complet des lignes.
 

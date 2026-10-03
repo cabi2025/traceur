@@ -182,7 +182,11 @@ def test_diff_d_une_modification_faite_par_un_script_tiers(base_synthetique: str
     assert [i.cle for i in factures.inserts] == [{"NUM": fait["facture"]}]
     assert factures.inserts[0].valeurs["MONTANT"] == Decimal("1234.56")
     assert factures.inserts[0].valeurs["COMMENTAIRE"] == "TEST-SIM"
-    assert len(changements["LIGNES"].lignes_ajoutees) == 2
+    lignes = changements["LIGNES"]  # sans clé primaire, mais avec la clé candidate (NUM_FACT, RANG)
+    assert (lignes.type_cle, lignes.colonnes_cle) == ("candidate", ("NUM_FACT", "RANG"))
+    assert sorted((i.cle["NUM_FACT"], i.cle["RANG"]) for i in lignes.inserts) == [
+        (fait["facture"], 1), (fait["facture"], 2)]
+    assert factures.type_cle == "primaire"  # clé primaire de FACTURES lue via les index (AMB-028)
     compteurs = changements["COMPTEURS"]
     assert compteurs.type_cle == "candidate" and compteurs.colonnes_cle == ("CODE_JOURNAL",)
     assert [(u.cle, [(c.colonne, c.avant, c.apres) for c in u.champs]) for u in compteurs.updates] == [
