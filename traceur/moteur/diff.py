@@ -111,7 +111,7 @@ class SchemaModifie:
 
 @dataclass(frozen=True)
 class Avertissement:
-    table: str
+    table: str | None
     code: str
     message: str
     details: dict[str, Any] = field(default_factory=dict)

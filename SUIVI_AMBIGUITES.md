@@ -192,3 +192,42 @@
 - **Recommandation :** 1. Format proposé : `docs/formats/bruit.example.json`.
 - **Décision utilisateur :** Comportement et `docs/formats/bruit.example.json` validés.
 - **Date de clôture :** 2026-10-03
+
+---
+
+## Ambiguïtés détectées en J3 (2026-10-03)
+
+### AMB-019 — Échelle de `confiance` des liens
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J3 / §7.1
+- **Contexte :** `confiance` est dans le format (`"haute"` dans l'exemple) mais l'échelle n'est pas définie.
+- **Options :** 1. `haute` (exacte, date stockée en date-heure) · `moyenne` (signe inversé, majuscules, texte tronqué) · `faible` (× 100, ÷ 100). 2. Tout `haute` pour l'exacte, `faible` pour toute tolérance.
+- **Recommandation :** 1.
+- **Code concerné :** `TODO(AMB-019)` dans `traceur/moteur/liens.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-020 — Règles précises des correspondances tolérées
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J3 / §7.1
+- **Contexte :** la SPEC liste les tolérances sans règles de détail :
+  (a) une correspondance tolérée est-elle cherchée même si une exacte existe ? (b) longueur minimale d'un texte tronqué ; (c) une date-heure à minuit est-elle « exacte » ou « date stockée en date-heure » ? (d) tolérances applicables au type `code` ; (e) un montant stocké en texte ; (f) saisie à 0 (signe inversé, × 100 identiques).
+- **Options / recommandation :** (a) tolérées seulement s'il n'existe aucune exacte pour cette saisie (sinon bruit : 12,34 × 100 = 1234) ; (b) 3 caractères ; (c) lecture littérale : toute date-heure est `date_heure` (à reconsidérer, Jet renvoie toujours des date-heure) ; (d) aucune tolérance pour `code` ; un entier égal au code (sans zéro de tête) est exact ; (e) refusé, les montants sont comparés aux colonnes numériques ; (f) aucune tolérance pour 0.
+- **Code concerné :** `TODO(AMB-020)` dans `traceur/moteur/liens.py` (provisoirement comme recommandé).
+- **Décision utilisateur :**
+
+### AMB-021 — Écart de saisie : « diffère manifestement » et « colonne attendue »
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J3 / §7.4
+- **Contexte :** la SPEC donne un exemple (1 243,56 au lieu de 1 234,56, même colonne) mais ni la définition de « manifestement », ni l'origine de la « colonne attendue » (la fiche ne la porte pas).
+- **Options :** 1. Colonne attendue = colonne où d'autres saisies du même champ d'écran ont été liées dans la même trace ; « manifestement » = une insertion, suppression, substitution ou transposition de deux caractères voisins (distance ≤ 1) sur la forme normalisée (montant, date ISO, texte/code d'au moins 4 caractères) ; cellules déjà expliquées exclues. 2. Utiliser l'historique de traces (hors V1). 3. Colonne attendue déclarée dans la fiche (changement de format).
+- **Recommandation :** 1.
+- **Code concerné :** `TODO(AMB-021)` dans `traceur/moteur/liens.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-022 — Détails des hypothèses de champs calculés (F7)
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J3 / §7.2
+- **Contexte :** points non définis : (a) `compteur` « + pas constant » : pas déduit des valeurs d'avant (écarts constants) ou, pour une ligne modifiée, delta constant entre lignes ; plusieurs lignes insérées d'un coup (max + 1, + 2…) ; (b) `horodatage_systeme` : horloge du poste vs serveur, aucune marge ; date-heure à minuit = date seule ; (c) `somme_lignes` : « lignes liées » via relations candidates `normale` du profil, valeur nulle exclue ; (d) `copie` : relation candidate `normale`, table différente, hors colonne clé ; (e) `constante` : colonne à une seule valeur, sans nul, table d'au moins 2 lignes dans le profil ; (f) `cumul_mis_a_jour` : lignes modifiées uniquement, delta non nul ; (g) `somme_lignes` dépend du profil (relations), comme `copie` et `constante` (AMB-010) ; (h) cellules NULL ignorées ; (i) pour une ligne modifiée, seuls les champs modifiés sont des cellules.
+- **Recommandation :** comportement ci-dessus.
+- **Code concerné :** `TODO(AMB-022)` dans `traceur/moteur/calcules.py` (provisoirement comme décrit).
+- **Décision utilisateur :**

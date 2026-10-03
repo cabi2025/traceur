@@ -50,10 +50,14 @@
 ---
 
 ## J3 — Interprétation (F6, F7)
-- [ ] Lien saisie → colonne : exact + correspondances tolérées signalées (SPEC §7.1)
-- [ ] Écarts de saisie (SPEC §7.4)
-- [ ] Champs calculés : chaque hypothèse de SPEC §7.2, plusieurs hypothèses possibles par champ
-- [ ] Tests : un cas par type de correspondance, un cas par hypothèse, un cas `inconnu`, un écart de saisie
+- [x] Lien saisie → colonne : exact + correspondances tolérées signalées (SPEC §7.1)
+- [x] Écarts de saisie (SPEC §7.4)
+- [x] Champs calculés : chaque hypothèse de SPEC §7.2, plusieurs hypothèses possibles par champ
+- [x] Tests : un cas par type de correspondance, un cas par hypothèse, un cas `inconnu`, un écart de saisie
+
+> 2026-10-03 — Fait. 131 tests `pytest` verts, `mypy --strict traceur/moteur` sans erreur.
+> Avant J3 : décisions AMB-011 et AMB-014 à 018 intégrées (clés candidates filtrées et ordonnées, relations à `confiance` faible, taux sur valeurs distinctes dans le profil).
+> Nouvelles ambiguïtés ouvertes : AMB-019 à AMB-022 (`TODO` dans `liens.py` et `calcules.py`). Les règles correspondantes sont provisoires et décrites dans la SPEC.
 
 **Acceptation :** tests verts ; aucune heuristique hors SPEC.
 
