@@ -118,28 +118,28 @@
 ## Ambiguïtés détectées en J1 (2026-10-03)
 
 ### AMB-011 — Table ajoutée ou supprimée entre deux photos
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J1 / §6.3
 - **Contexte :** la SPEC ne traite que le changement de schéma d'une table existante.
 - **Options :** 1. Signaler dans `schema_modifie` (nature `table_ajoutee` / `table_supprimee`), sans diff de lignes. 2. Traiter comme insert/delete de toutes les lignes.
 - **Recommandation :** 1.
-- **Code concerné :** `TODO(AMB-011)` dans `traceur/moteur/diff.py` (implémenté provisoirement selon l'option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Table ajoutée → toutes ses lignes en `inserts` ; table supprimée → toutes ses lignes en `deletes` ; signalement conservé dans `schema_modifie`. (Pour une table sans clé, les lignes vont dans `lignes_ajoutees` / `lignes_supprimees`, équivalents sans clé.)
+- **Date de clôture :** 2026-10-03
 
 ### AMB-012 — Diff de lignes d'une table dont le schéma a changé
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J1 / §6.3
 - **Contexte :** `schema_modifie` est « signalé à part », mais la SPEC ne dit pas si les lignes sont comparées.
 - **Options :** 1. Pas de diff de lignes pour cette table (signalement seul). 2. Diff sur les colonnes communes.
 - **Recommandation :** 1 (rien d'inventé ; l'analyste voit le changement de schéma).
-- **Code concerné :** `TODO(AMB-012)` dans `traceur/moteur/diff.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Diff des lignes sur les colonnes communes aux deux photos, avertissement listant les colonnes ajoutées/supprimées, signalement conservé dans `schema_modifie`.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-013 — Appariement des `update_probable`
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J1 / §6.3
 - **Contexte :** « une paire ajoutée/supprimée qui diffère d'au plus 2 champs » ne dit pas : (a) l'algorithme quand plusieurs paires sont possibles ; (b) si les lignes appariées sortent de `lignes_ajoutees` / `lignes_supprimees` ; (c) le coût O(n×m) sur de gros volumes.
 - **Options :** (a) appariement glouton déterministe, plus petit nombre de champs différents, puis premier dans l'ordre ; (b) retirer les lignes appariées des deux listes ; (c) plafond de 1 000 000 de comparaisons, au-delà pas d'appariement.
 - **Recommandation :** a + b + c tels quels.
-- **Code concerné :** `TODO(AMB-013)` dans `traceur/moteur/diff.py` (provisoirement a + b + c).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Option provisoire acceptée (glouton déterministe, lignes appariées retirées des listes, plafond 1 000 000), à condition que l'atteinte du plafond produise un avertissement explicite dans `avertissements` (table concernée, nombre de lignes non appariées).
+- **Date de clôture :** 2026-10-03

@@ -118,7 +118,11 @@ Pour chaque table dont l'empreinte a changé (une table à empreinte, nombre de 
 - **sans clé primaire :** on cherche une **clé candidate** issue du profilage (colonne ou couple de colonnes uniques et non nulles) et on l'utilise.
   - À défaut, on compare des **multiensembles d'empreintes de lignes**. On obtient `lignes_ajoutees` et `lignes_supprimees`.
   - Une paire ajoutée/supprimée qui diffère d'au plus 2 champs est proposée comme **`update_probable`**.
-- Le changement de schéma entre deux photos est signalé à part (`schema_modifie`).
+  - L'appariement est glouton et déterministe : pour chaque ligne ajoutée, on retient la ligne supprimée libre qui diffère du plus petit nombre de champs (premier dans l'ordre en cas d'égalité). Les lignes appariées sortent de `lignes_ajoutees` / `lignes_supprimees`. Au-delà de 1 000 000 de comparaisons (ajoutées × supprimées), aucun appariement n'est tenté et un avertissement explicite est produit (table, nombre de lignes non appariées).
+- Le changement de schéma entre deux photos est signalé à part (`schema_modifie`) :
+  - **table ajoutée** : toutes ses lignes sont des `inserts` (ou `lignes_ajoutees` si la table n'a pas de clé) ;
+  - **table supprimée** : toutes ses lignes sont des `deletes` (ou `lignes_supprimees` sans clé) ;
+  - **colonnes modifiées** : les lignes sont comparées sur les colonnes communes aux deux photos, et un avertissement liste les colonnes ajoutées, supprimées et les types modifiés.
 
 ### 6.4 Profilage (F2)
 Pour chaque table : nombre de lignes, colonnes, types déclarés et types observés, % de nuls, nombre de valeurs distinctes, min/max.
@@ -197,6 +201,8 @@ Chaque élément de `changements[]` porte `table` et `cle_utilisee` (`type` : `p
 - dans les deux cas : `updates_probables[]`.
 
 Valeurs : montants en chaîne décimale exacte, dates en ISO 8601, aucun flottant JSON.
+
+Chaque élément de `avertissements[]` porte `table`, `code` (ex. `appariement_plafond_atteint`, `schema_modifie_colonnes_communes`), `message` (français) et des champs propres au code (ex. `lignes_ajoutees_non_appariees`, `lignes_supprimees_non_appariees`, `colonnes_ajoutees`, `colonnes_supprimees`, `types_modifies`).
 
 ### 8.2 Statuts
 - `execution.statut` : `terminee` | `annulee` | `ecart_saisie`.

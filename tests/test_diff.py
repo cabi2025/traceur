@@ -1,6 +1,9 @@
 import sqlite3
 from typing import Sequence
 
+import pytest
+
+import traceur.moteur.diff as diff_module
 from traceur.moteur.diff import ResultatDiff, comparer_instantanes
 from traceur.moteur.instantane import prendre_instantane
 from traceur.sources.sqlite import SourceSqlite
@@ -112,15 +115,119 @@ def test_cle_candidate_non_unique_repli_multiensembles(
     assert t.type_cle == "aucune" and len(t.lignes_ajoutees) == 1
 
 
-def test_schema_modifie(base: sqlite3.Connection, source: SourceSqlite) -> None:
+def test_table_ajoutee_avec_pk_lignes_en_inserts(
+    base: sqlite3.Connection, source: SourceSqlite
+) -> None:
+    d = _diff(base, source, [
+        "CREATE TABLE N (ID INTEGER PRIMARY KEY, V TEXT)",
+        "INSERT INTO N VALUES (1,'a'), (2,'b')"])
+    assert [(s.table, s.nature) for s in d.schema_modifie] == [("N", "table_ajoutee")]
+    (t,) = d.changements
+    assert t.type_cle == "primaire" and [i.cle for i in t.inserts] == [{"ID": 1}, {"ID": 2}]
+    assert not t.deletes and not d.avertissements
+
+
+def test_table_ajoutee_sans_cle_lignes_ajoutees(
+    base: sqlite3.Connection, source: SourceSqlite
+) -> None:
+    d = _diff(base, source, ["CREATE TABLE N (V TEXT)", "INSERT INTO N VALUES ('a')"])
+    (t,) = d.changements
+    assert t.type_cle == "aucune" and t.lignes_ajoutees == [{"V": "a"}]
+
+
+def test_table_supprimee_lignes_en_deletes(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE G (ID INTEGER PRIMARY KEY, V TEXT)")
+    base.execute("INSERT INTO G VALUES (7,'x')")
+    d = _diff(base, source, ["DROP TABLE G"])
+    assert [(s.table, s.nature) for s in d.schema_modifie] == [("G", "table_supprimee")]
+    (t,) = d.changements
+    assert [x.cle for x in t.deletes] == [{"ID": 7}] and not t.inserts
+
+
+def test_table_ajoutee_ou_supprimee_vide_signalee_sans_ligne(
+    base: sqlite3.Connection, source: SourceSqlite
+) -> None:
+    base.execute("CREATE TABLE G (X)")
+    d = _diff(base, source, ["DROP TABLE G", "CREATE TABLE N (X)"])
+    assert {s.table: s.nature for s in d.schema_modifie} == {
+        "N": "table_ajoutee", "G": "table_supprimee"}
+    assert not d.changements
+
+
+def test_schema_modifie_diff_sur_colonnes_communes(
+    base: sqlite3.Connection, source: SourceSqlite
+) -> None:
+    base.execute("CREATE TABLE A (ID INTEGER PRIMARY KEY, X TEXT, VIEUX TEXT)")
+    base.executemany("INSERT INTO A VALUES (?,?,?)", [(1, "a", "v"), (2, "b", "v")])
+    d = _diff(base, source, [
+        "ALTER TABLE A ADD COLUMN NEUF TEXT",
+        "ALTER TABLE A DROP COLUMN VIEUX",
+        "UPDATE A SET X='z' WHERE ID=1",
+        "INSERT INTO A VALUES (3, 'c', 'n')"])
+    assert [(s.table, s.nature) for s in d.schema_modifie] == [("A", "colonnes_modifiees")]
+    (t,) = d.changements
+    assert t.type_cle == "primaire"
+    assert [(u.cle, [c.colonne for c in u.champs]) for u in t.updates] == [({"ID": 1}, ["X"])]
+    assert t.inserts[0].valeurs == {"ID": 3, "X": "c"}  # colonne NEUF hors comparaison
+    (w,) = d.avertissements
+    assert w.code == "schema_modifie_colonnes_communes" and w.table == "A"
+    assert w.details["colonnes_ajoutees"] == ["NEUF"]
+    assert w.details["colonnes_supprimees"] == ["VIEUX"]
+    assert "NEUF" in w.message and "VIEUX" in w.message
+
+
+def test_schema_modifie_sans_difference_de_lignes(
+    base: sqlite3.Connection, source: SourceSqlite
+) -> None:
     base.execute("CREATE TABLE A (X TEXT)")
-    base.execute("CREATE TABLE B (X TEXT)")
-    base.execute("CREATE TABLE G (X TEXT)")
-    d = _diff(base, source, ["ALTER TABLE A ADD COLUMN Y TEXT", "INSERT INTO A VALUES ('1','2')",
-                             "DROP TABLE G", "CREATE TABLE N (X TEXT)"])
-    natures = {s.table: s.nature for s in d.schema_modifie}
-    assert natures == {"A": "colonnes_modifiees", "N": "table_ajoutee", "G": "table_supprimee"}
-    assert not d.changements  # TODO(AMB-012) : pas de diff de lignes
+    base.execute("INSERT INTO A VALUES ('a')")
+    d = _diff(base, source, ["ALTER TABLE A ADD COLUMN Y TEXT"])
+    assert not d.changements and len(d.schema_modifie) == 1 and len(d.avertissements) == 1
+
+
+def test_plafond_d_appariement_produit_un_avertissement(
+    base: sqlite3.Connection, source: SourceSqlite, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(diff_module, "LIMITE_APPARIEMENT", 3)
+    base.execute("CREATE TABLE L (C TEXT, M TEXT)")
+    base.executemany("INSERT INTO L VALUES (?,?)", [(f"c{i}", "1") for i in range(3)])
+    d = _diff(base, source, [
+        "UPDATE L SET M='2'", "INSERT INTO L VALUES ('n1','9')", "INSERT INTO L VALUES ('n2','9')"])
+    (t,) = d.changements
+    assert not t.updates_probables and len(t.lignes_ajoutees) == 5 and len(t.lignes_supprimees) == 3
+    (w,) = d.avertissements
+    assert (w.table, w.code) == ("L", "appariement_plafond_atteint")
+    assert w.details == {"lignes_ajoutees_non_appariees": 5, "lignes_supprimees_non_appariees": 3}
+    assert "L" in w.message and "5" in w.message and "3" in w.message
+
+
+def test_sous_le_plafond_aucun_avertissement(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE L (C TEXT, M TEXT)")
+    base.execute("INSERT INTO L VALUES ('a','1')")
+    d = _diff(base, source, ["UPDATE L SET M='2'"])
+    assert d.changements[0].updates_probables and not d.avertissements
+
+
+def test_tables_de_bruit_rapportees_a_part(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE SESSIONS (ID INTEGER PRIMARY KEY, V TEXT)")
+    base.execute("CREATE TABLE A (X)")
+    base.execute("INSERT INTO SESSIONS VALUES (1,'a')")
+    avant = prendre_instantane(source)
+    base.execute("UPDATE SESSIONS SET V='b'")
+    base.execute("INSERT INTO A VALUES (1)")
+    d = comparer_instantanes(avant, prendre_instantane(source), tables_bruit=["sessions"])
+    assert [t.table for t in d.changements] == ["A"]
+    assert d.bruit == [{"table": "SESSIONS",
+                        "resume": "1 ligne modifiée (ignorée : table de bruit)"}]
+    assert d.vers_dict()["bruit"] == d.bruit
+
+
+def test_resume_bruit_pluriel(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE S (ID INTEGER PRIMARY KEY)")
+    avant = prendre_instantane(source)
+    base.execute("INSERT INTO S VALUES (1),(2)")
+    d = comparer_instantanes(avant, prendre_instantane(source), tables_bruit=["S"])
+    assert d.bruit[0]["resume"] == "2 lignes ajoutées (ignorée : table de bruit)"
 
 
 def test_tables_ignorees_absentes_du_diff(base: sqlite3.Connection, source: SourceSqlite) -> None:
