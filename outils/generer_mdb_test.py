@@ -23,19 +23,22 @@ MOTEUR_JET3 = 4
 FOURNISSEUR = "Microsoft.Jet.OLEDB.4.0"
 AD_OPEN_KEYSET, AD_LOCK_OPTIMISTIC, AD_CMD_TABLE = 1, 3, 2
 
+# Tous les identifiants sont entre crochets : Jet a beaucoup de mots réservés (NOTE, par exemple,
+# est un synonyme du type MEMO) et refuse « NOTE MEMO » avec « Erreur de syntaxe dans la
+# définition de champ ».
 TABLES: dict[str, str] = {
-    "CLIENTS": "CREATE TABLE CLIENTS (ID LONG PRIMARY KEY, NOM TEXT(50), CODE TEXT(10), "
-               "SOLDE CURRENCY, CREE DATETIME)",
-    "FACTURES": "CREATE TABLE FACTURES (NUM LONG PRIMARY KEY, CLIENT_ID LONG, MONTANT CURRENCY, "
-                "DATE_F DATETIME, STATUT TEXT(1), NOTE MEMO)",
-    "LIGNES": "CREATE TABLE LIGNES (NUM_FACT LONG, RANG INTEGER, REF TEXT(10), QTE LONG, "
-              "DEBIT CURRENCY, CREDIT CURRENCY)",
-    "COMPTEURS": "CREATE TABLE COMPTEURS (CODE_JOURNAL TEXT(3), DERNIER_NUM LONG)",
-    "SESSIONS": "CREATE TABLE SESSIONS (ID LONG PRIMARY KEY, DERNIER_ACCES DATETIME)",
+    "CLIENTS": "CREATE TABLE [CLIENTS] ([ID] LONG PRIMARY KEY, [NOM] TEXT(50), [CODE] TEXT(10), "
+               "[SOLDE] CURRENCY, [CREE] DATETIME)",
+    "FACTURES": "CREATE TABLE [FACTURES] ([NUM] LONG PRIMARY KEY, [CLIENT_ID] LONG, [MONTANT] CURRENCY, "
+                "[DATE_F] DATETIME, [STATUT] TEXT(1), [COMMENTAIRE] MEMO)",
+    "LIGNES": "CREATE TABLE [LIGNES] ([NUM_FACT] LONG, [RANG] INTEGER, [REF] TEXT(10), [QTE] LONG, "
+              "[DEBIT] CURRENCY, [CREDIT] CURRENCY)",
+    "COMPTEURS": "CREATE TABLE [COMPTEURS] ([CODE_JOURNAL] TEXT(3), [DERNIER_NUM] LONG)",
+    "SESSIONS": "CREATE TABLE [SESSIONS] ([ID] LONG PRIMARY KEY, [DERNIER_ACCES] DATETIME)",
 }
 COLONNES: dict[str, tuple[str, ...]] = {
     "CLIENTS": ("ID", "NOM", "CODE", "SOLDE", "CREE"),
-    "FACTURES": ("NUM", "CLIENT_ID", "MONTANT", "DATE_F", "STATUT", "NOTE"),
+    "FACTURES": ("NUM", "CLIENT_ID", "MONTANT", "DATE_F", "STATUT", "COMMENTAIRE"),
     "LIGNES": ("NUM_FACT", "RANG", "REF", "QTE", "DEBIT", "CREDIT"),
     "COMPTEURS": ("CODE_JOURNAL", "DERNIER_NUM"),
     "SESSIONS": ("ID", "DERNIER_ACCES"),
@@ -120,7 +123,10 @@ def creer_base(
     effectifs: dict[str, int] = {}
     try:
         for nom, ddl in TABLES.items():
-            connexion.Execute(ddl)
+            try:
+                connexion.Execute(ddl)
+            except Exception as erreur:
+                raise RuntimeError(f"Échec de la création de la table {nom} : {erreur}\nInstruction : {ddl}") from erreur
         donnees = generer_donnees(nb_factures)
         for nom, lignes in donnees.items():
             _remplir(dispatch, connexion, nom, lignes, progression)
@@ -142,7 +148,7 @@ def _remplir(dispatch: Callable[[str], Any], connexion: Any, table: str,
             jeu.AddNew()
             for position, valeur in enumerate(ligne):
                 if valeur is not None:
-                    jeu.Fields(position).Value = _valeur_com(valeur)
+                    jeu.Fields.Item(position).Value = _valeur_com(valeur)
             jeu.Update()
             if n % 5000 == 0:
                 connexion.CommitTrans()
@@ -182,7 +188,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (FileExistsError, OSError) as erreur:
         print(f"Erreur : {erreur}")
         return 1
-    except Exception as erreur:  # erreurs COM : message du pilote, jamais le mot de passe
+    except Exception as erreur:  # erreurs COM/ADO : message du pilote, jamais le mot de passe
         message = str(erreur).replace(args.mot_de_passe or "\0", "***")
         print(f"Erreur COM/ADO : {message}")
         return 1

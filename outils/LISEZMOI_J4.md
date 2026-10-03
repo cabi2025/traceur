@@ -75,8 +75,8 @@ Si la liste ne contient aucun pilote Access :
 python -m pytest -q -rs
 ```
 
-**Résultat attendu :** `236 passed` et **aucune ligne `SKIPPED`**.
-(Sous Linux, ces mêmes tests donnent « 224 passed, 12 skipped » : les 12 sautés sont les tests d'intégration Access, qui ne peuvent tourner que chez vous.)
+**Résultat attendu :** `238 passed` et **aucune ligne `SKIPPED`**.
+(Sous Linux, ces mêmes tests donnent « 226 passed, 12 skipped » : les 12 sautés sont les tests d'intégration Access, qui ne peuvent tourner que chez vous.)
 Si des tests sont sautés, la raison s'affiche (`pyodbc`/`pywin32` absent, pilote invisible, Python 64 bits) : corrigez et relancez.
 
 ## 6. Créer une base synthétique

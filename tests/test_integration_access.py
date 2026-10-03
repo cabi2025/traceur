@@ -181,7 +181,7 @@ def test_diff_d_une_modification_faite_par_un_script_tiers(base_synthetique: str
     factures = changements["FACTURES"]
     assert [i.cle for i in factures.inserts] == [{"NUM": fait["facture"]}]
     assert factures.inserts[0].valeurs["MONTANT"] == Decimal("1234.56")
-    assert factures.inserts[0].valeurs["NOTE"] == "TEST-SIM"
+    assert factures.inserts[0].valeurs["COMMENTAIRE"] == "TEST-SIM"
     assert len(changements["LIGNES"].lignes_ajoutees) == 2
     compteurs = changements["COMPTEURS"]
     assert compteurs.type_cle == "candidate" and compteurs.colonnes_cle == ("CODE_JOURNAL",)
@@ -189,10 +189,10 @@ def test_diff_d_une_modification_faite_par_un_script_tiers(base_synthetique: str
         ({"CODE_JOURNAL": "ACH"}, [("DERNIER_NUM", 40, 41)])]
     assert [d.cle for d in changements["CLIENTS"].deletes] == [{"ID": fait["client_supprime"]}]
     assert [b["table"] for b in diff.bruit] == ["SESSIONS"]
-    resultat = interpreter(diff, avant, apres, [saisie("Montant", "1234.56"), saisie("Note", "TEST-SIM", "texte")],
+    resultat = interpreter(diff, avant, apres, [saisie("Montant", "1234.56"), saisie("Commentaire", "TEST-SIM", "texte")],
                            DEBUT, FIN, profil)
     liens = {(x.table, x.colonne, x.type_correspondance) for x in resultat.liens}
-    assert ("FACTURES", "MONTANT", "exacte") in liens and ("FACTURES", "NOTE", "exacte") in liens
+    assert ("FACTURES", "MONTANT", "exacte") in liens and ("FACTURES", "COMMENTAIRE", "exacte") in liens
     assert not resultat.a_un_ecart_de_saisie
 
 

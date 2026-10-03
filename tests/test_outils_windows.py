@@ -43,7 +43,7 @@ def test_donnees_deterministes_et_colonnes_coherentes() -> None:
     assert gen.generer_donnees(50) == gen.generer_donnees(50)
     for table, lignes in gen.generer_donnees(50).items():
         assert all(len(ligne) == len(gen.COLONNES[table]) for ligne in lignes)
-        assert f"CREATE TABLE {table} (" in gen.TABLES[table]
+        assert f"CREATE TABLE [{table}] (" in gen.TABLES[table]
 
 
 def test_le_profil_retrouve_les_cles_et_relations_prevues() -> None:
@@ -78,6 +78,14 @@ class _Champ:
         self.jeu.ligne[self.position] = v
 
 
+class _Champs:
+    def __init__(self, jeu: "_Jeu") -> None:
+        self.jeu = jeu
+
+    def Item(self, position: int) -> _Champ:  # noqa: N802
+        return _Champ(self.jeu, position)
+
+
 class _Jeu:
     def __init__(self, journal: list[tuple[str, Any]], donnees: dict[str, list[dict[int, Any]]]) -> None:
         self.journal, self.donnees, self.ligne, self.table = journal, donnees, {}, ""
@@ -89,8 +97,9 @@ class _Jeu:
     def AddNew(self) -> None:  # noqa: N802
         self.ligne = {}
 
-    def Fields(self, position: int) -> _Champ:  # noqa: N802
-        return _Champ(self, position)
+    @property
+    def Fields(self) -> "_Champs":  # noqa: N802
+        return _Champs(self)
 
     def Update(self) -> None:  # noqa: N802
         self.donnees.setdefault(self.table, []).append(self.ligne)
@@ -150,7 +159,7 @@ def test_creation_jet4_tables_puis_lignes(tmp_path: Path) -> None:
     assert {t: len(v) for t, v in donnees.items()} == effectifs
     assert journal.count(("begin", None)) == journal.count(("commit", None)) == 5
     # montant écrit en flottant à 2 décimales, nul non écrit (champ laissé vide)
-    assert donnees["FACTURES"][0][2] == 100.0 and 5 not in donnees["FACTURES"][0]  # NOTE nulle (i=0)
+    assert donnees["FACTURES"][0][2] == 100.0 and 5 not in donnees["FACTURES"][0]  # commentaire nul (i=0)
 
 
 def test_creation_jet3_et_mot_de_passe(tmp_path: Path) -> None:
@@ -187,3 +196,40 @@ def test_simulateur_modifie_la_base_comme_attendu() -> None:
 def test_simulateur_sans_pilote() -> None:
     with pytest.raises(RuntimeError, match="32 bits"):
         sim.simuler(r"C:\t.mdb", None, FauxPyodbc(sqlite3.connect(":memory:"), pilotes=[]))
+
+
+# Mots réservés ou noms de types Jet : jamais comme identifiant non protégé (régression J4, Windows).
+MOTS_JET = {"NOTE", "MEMO", "TEXT", "DATE", "TIME", "LONG", "INTEGER", "CURRENCY", "DATETIME", "YESNO",
+            "COUNTER", "USER", "NAME", "VALUE", "LEVEL", "SELECT", "TABLE", "ORDER", "GROUP"}
+
+
+def test_tous_les_identifiants_du_ddl_sont_entre_crochets() -> None:
+    import re
+
+    for table, ddl in gen.TABLES.items():
+        corps = ddl[ddl.index("(") + 1 : ddl.rindex(")")]
+        colonnes = re.findall(r"\[([^\]]+)\]\s+[A-Z]+", corps)
+        assert tuple(colonnes) == gen.COLONNES[table], table
+        assert ddl.startswith(f"CREATE TABLE [{table}] (")
+        # aucune colonne non protégée : hors crochets, il ne reste que types, tailles et clauses
+        hors_crochets = re.sub(r"\[[^\]]+\]", "", corps)
+        assert not re.search(r"\b[A-Z_]{2,}_[A-Z_]+\b", hors_crochets), (table, hors_crochets)
+    assert not (set(sum((list(c) for c in gen.COLONNES.values()), [])) & MOTS_JET)
+
+
+def test_echec_du_ddl_nomme_la_table_et_l_instruction(tmp_path: Path) -> None:
+    dispatch, journal, _ = _faux_com()
+    base_dispatch = dispatch
+
+    def dispatch_cassee(nom: str) -> Any:
+        objet = base_dispatch(nom)
+        if nom == "ADODB.Connection":
+            def execute(sql: str) -> None:
+                if "[FACTURES]" in sql:
+                    raise RuntimeError("Erreur de syntaxe dans la définition de champ.")
+
+            objet.Execute = execute
+        return objet
+
+    with pytest.raises(RuntimeError, match=r"(?s)table FACTURES.*syntaxe.*CREATE TABLE \[FACTURES\]"):
+        gen.creer_base(tmp_path / "s.mdb", 5, dispatch=dispatch_cassee, progression=lambda t: None)

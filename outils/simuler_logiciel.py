@@ -37,10 +37,10 @@ def simuler(chemin: str, mot_de_passe: str | None = None, pyodbc_module: Any | N
         numero = int(c.fetchone()[0]) + 1
         c.execute("SELECT MAX(ID) FROM CLIENTS")
         client_supprime = int(c.fetchone()[0])
-        c.execute("INSERT INTO FACTURES (NUM, CLIENT_ID, MONTANT, DATE_F, STATUT, NOTE) VALUES (?,?,?,?,?,?)",
+        c.execute("INSERT INTO [FACTURES] ([NUM], [CLIENT_ID], [MONTANT], [DATE_F], [STATUT], [COMMENTAIRE]) VALUES (?,?,?,?,?,?)",
                   numero, 5, MONTANT, maintenant, "P", "TEST-SIM")
         for rang, debit, credit in ((1, MONTANT, 0.0), (2, 0.0, MONTANT)):
-            c.execute("INSERT INTO LIGNES (NUM_FACT, RANG, REF, QTE, DEBIT, CREDIT) VALUES (?,?,?,?,?,?)",
+            c.execute("INSERT INTO [LIGNES] ([NUM_FACT], [RANG], [REF], [QTE], [DEBIT], [CREDIT]) VALUES (?,?,?,?,?,?)",
                       numero, rang, "TEST-SIM", 1, debit, credit)
         c.execute("UPDATE COMPTEURS SET DERNIER_NUM = DERNIER_NUM + 1 WHERE CODE_JOURNAL = 'ACH'")
         c.execute("UPDATE SESSIONS SET DERNIER_ACCES = ? WHERE ID = 1", maintenant)
