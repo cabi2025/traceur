@@ -143,3 +143,52 @@
 - **Recommandation :** a + b + c tels quels.
 - **Décision utilisateur :** Option provisoire acceptée (glouton déterministe, lignes appariées retirées des listes, plafond 1 000 000), à condition que l'atteinte du plafond produise un avertissement explicite dans `avertissements` (table concernée, nombre de lignes non appariées).
 - **Date de clôture :** 2026-10-03
+
+---
+
+## Ambiguïtés détectées en J2 (2026-10-03)
+
+### AMB-014 — Choix de la clé candidate utilisée par le diff quand il y en a plusieurs
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J2 / §6.3
+- **Contexte :** une table sans clé primaire peut avoir plusieurs colonnes ou couples uniques et non nuls ; la SPEC dit « on utilise une clé candidate » sans critère.
+- **Options :** 1. Le moins de colonnes, puis premier dans l'ordre des colonnes. 2. Validation par l'utilisateur (hors périmètre V1).
+- **Recommandation :** 1.
+- **Code concerné :** `TODO(AMB-014)` dans `traceur/moteur/profilage.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-015 — Clés candidates sur les tables très petites
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J2 / §6.4
+- **Contexte :** une table de 0 ou 1 ligne rend toutes ses colonnes « uniques et non nulles » : les clés (et relations) déduites n'ont aucun sens.
+- **Options :** 1. Aucune clé candidate sous 2 lignes. 2. Seuil plus élevé (à fixer). 3. Appliquer la règle telle quelle.
+- **Recommandation :** 1 (seuil minimal ; à relever si les profils réels montrent du bruit).
+- **Code concerné :** `TODO(AMB-015)` dans `traceur/moteur/profilage.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-016 — Fausses relations sur colonnes à peu de valeurs distinctes
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J2 / §6.4
+- **Contexte :** la règle (≥ 99 % d'inclusion, types compatibles) accepte une colonne `0/1` ou un code à 3 valeurs incluse dans une clé numérique 1..N. Ces relations sont fausses mais conformes à la SPEC.
+- **Options :** 1. Appliquer la règle telle quelle (l'analyste filtre). 2. Seuil minimal de valeurs distinctes pour la colonne source. 3. Exiger un nom de colonne proche.
+- **Recommandation :** 1 en V1 (« aucune heuristique hors SPEC »), à réévaluer sur la vraie base.
+- **Code concerné :** aucun (comportement SPEC strict).
+- **Décision utilisateur :**
+
+### AMB-017 — Taux d'inclusion : par lignes ou par valeurs distinctes
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J2 / §6.4
+- **Contexte :** « valeurs non nulles incluses à au moins 99 % » : sur les lignes (une valeur fréquente pèse plus) ou sur les valeurs distinctes ?
+- **Options :** 1. Sur les lignes non nulles. 2. Sur les valeurs distinctes.
+- **Recommandation :** 1 (une clé étrangère orpheline fréquente est un vrai défaut d'intégrité).
+- **Code concerné :** `TODO(AMB-017)` dans `traceur/moteur/profilage.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-018 — Format de `bruit.json` et rôle de `tables_ignorees`
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J2 / §4, §6.5, §8
+- **Contexte :** `bruit.json` n'a pas d'exemple dans `docs/formats/`. Par ailleurs `tables_ignorees` est « ajoutée à la calibration » (§4) alors que §6.2 ne photographie que les tables « non ignorées » : ignorées de la photo, ou rapportées comme bruit ?
+- **Options :** 1. `tables_ignorees` exclues des photos (jamais rapportées) ; `bruit.json` les liste séparément ; les tables de bruit validées restent photographiées et sont rapportées dans `bruit`. 2. `tables_ignorees` fusionnées dans `tables_bruit` (photographiées, rapportées dans `bruit`).
+- **Recommandation :** 1. Format proposé : `docs/formats/bruit.example.json`.
+- **Code concerné :** `TODO(AMB-018)` dans `traceur/moteur/calibration.py` (provisoirement option 1).
+- **Décision utilisateur :**

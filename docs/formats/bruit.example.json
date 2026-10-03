@@ -1,0 +1,12 @@
+{
+  "format_version": "1.0",
+  "debut": "2026-10-05T09:58:00",
+  "fin": "2026-10-05T09:58:31",
+  "intervalle_s": 30,
+  "tables_bruit_proposees": [
+    { "table": "SESSIONS", "resume": "1 ligne modifiée" },
+    { "table": "JOURNAL_ACCES", "resume": "2 lignes ajoutées" }
+  ],
+  "tables_bruit": ["SESSIONS", "JOURNAL_ACCES"],
+  "tables_ignorees": []
+}

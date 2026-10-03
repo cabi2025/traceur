@@ -317,7 +317,9 @@ def _table_vide(modele: TableInstantane) -> TableInstantane:
     return TableInstantane(modele.nom, modele.schema, 0, empreinte_table([]), [], 0.0)
 
 
-def _resume_bruit(diff: DiffTable) -> str:
+def resume_table(diff: DiffTable) -> str:
+    """Ex. « 1 ligne modifiée », « 2 lignes ajoutées, 1 ligne supprimée »."""
+
     def lignes(n: int, adjectif: str) -> str:
         return f"{n} ligne{'s' if n > 1 else ''} {adjectif}{'s' if n > 1 else ''}"
 
@@ -326,8 +328,11 @@ def _resume_bruit(diff: DiffTable) -> str:
         (len(diff.updates) + len(diff.updates_probables), "modifiée"),
         (len(diff.deletes) + len(diff.lignes_supprimees), "supprimée"),
     ]
-    morceaux = [lignes(n, adj) for n, adj in compte if n]
-    return ", ".join(morceaux) + " (ignorée : table de bruit)"
+    return ", ".join(lignes(n, adj) for n, adj in compte if n)
+
+
+def _resume_bruit(diff: DiffTable) -> str:
+    return resume_table(diff) + " (ignorée : table de bruit)"
 
 
 def _projeter(

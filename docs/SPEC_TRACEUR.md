@@ -90,6 +90,7 @@ traceur/
     liens.py       # F6
     calcules.py    # F7
     profilage.py   # F2
+    calibration.py # F3
   sources/
     access.py      # SourceDonnees via pyodbc/Jet
     sqlite.py      # SourceDonnees pour les tests
@@ -137,6 +138,8 @@ Sortie : `profil.json` et `profil.html` (dictionnaire des tables + graphe des re
 Le traceur prend 2 photos espacées de N secondes (défaut 30) **sans aucune action**, avec le logiciel ouvert. Les tables qui changent sont proposées comme `tables_bruit` et l'utilisateur valide.
 
 Pendant un diff, les tables de bruit sont rapportées à part (`bruit`), pas mêlées aux changements.
+
+Sortie : `bruit.json` (format provisoire : `docs/formats/bruit.example.json`, voir AMB-018) avec les tables proposées (et leur résumé), les tables de bruit validées et les `tables_ignorees` de la configuration.
 
 ## 7. Interprétation
 

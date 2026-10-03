@@ -35,10 +35,15 @@
 ---
 
 ## J2 — Profilage + calibration (F2, F3)
-- [ ] Profil par table (SPEC §6.4) : stats, clés candidates, relations candidates avec taux d'inclusion
-- [ ] Utilisation des clés candidates par le diff sans PK
-- [ ] Calibration du bruit : 2 photos sans action → `bruit.json` ; tables de bruit isolées dans le diff
-- [ ] `profil.html` autonome avec graphe des relations, sans réseau
+- [x] Profil par table (SPEC §6.4) : stats, clés candidates, relations candidates avec taux d'inclusion
+- [x] Utilisation des clés candidates par le diff sans PK
+- [x] Calibration du bruit : 2 photos sans action → `bruit.json` ; tables de bruit isolées dans le diff
+- [x] `profil.html` autonome avec graphe des relations, sans réseau
+
+> 2026-10-03 — Fait. 66 tests `pytest` verts, `mypy --strict traceur/moteur` sans erreur. HTML vérifié hors ligne dans Chromium (aucune requête réseau).
+> En tête de J2 : AMB-011/012/013 implémentées et closes (inserts/deletes des tables ajoutées/supprimées, diff sur colonnes communes, avertissements).
+> Nouvelles ambiguïtés ouvertes : AMB-014 à AMB-018 (`TODO` dans `profilage.py` et `calibration.py`). AMB-016 : relations sur colonnes à peu de valeurs distinctes acceptées telles que la SPEC les définit.
+> Ajout : `docs/formats/bruit.example.json` (format provisoire de `bruit.json`).
 
 **Acceptation :** tests sur une base SQLite à relations connues (FK retrouvées, fausses relations absentes) ; HTML ouvrable hors ligne.
 
