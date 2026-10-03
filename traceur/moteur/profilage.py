@@ -23,7 +23,7 @@ _TYPES_DECLARES_EXCLUS = (
     "FLOAT", "DOUBLE", "REAL", "SINGLE",  # flottants
     "DATE", "TIME",  # dates et date-heure
     "MEMO", "LONGTEXT", "LONGCHAR", "CLOB",  # mémo
-    "BLOB", "BINARY", "LONGBINARY", "OLE", "IMAGE",  # binaire
+    "BLOB", "BINARY", "VARBINARY", "LONGBINARY", "OLE", "IMAGE",  # binaire
 )
 _DEUX_DECIMALES = Decimal("0.01")
 _QUATRE_DECIMALES = Decimal("0.0001")

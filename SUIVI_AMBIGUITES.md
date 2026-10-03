@@ -231,3 +231,52 @@
 - **Recommandation :** comportement ci-dessus.
 - **Décision utilisateur :** Validé, avec deux changements : marge de ±2 minutes sur `horodatage_systeme` ; relations `faible` exclues de `somme_lignes` et `copie`.
 - **Date de clôture :** 2026-10-03
+
+---
+
+## Ambiguïtés détectées en J4 (2026-10-03)
+
+### AMB-023 — Clés de configuration « oui (F10) » / « oui (F8) »
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J4 / §4
+- **Contexte :** `instantane_reference` est « oui (F10) » et `fichier_fiches` « oui (F8) » : obligatoires toujours, ou seulement quand la fonction est utilisée ?
+- **Options :** 1. Toujours exigées au démarrage (l'outil offre toutes les fonctions). 2. Exigées à l'usage seulement.
+- **Recommandation :** 1 (le contrôle `base_test ≠ instantane_reference` n'a de sens que si les deux sont connues).
+- **Code concerné :** `traceur/config.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-024 — « Le chemin de TEST figure dans `chemins_interdits` » : égalité ou inclusion ; limites de la normalisation
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J4 / §4, CLAUDE.md (sécurité)
+- **Contexte :** (a) « figure » = égal, ou aussi situé dans un dossier interdit ? (b) la normalisation (casse, `/` ou `\`, `..`, préfixe `\\?\`, UNC, lecteur réseau résolu en UNC par Windows) ne peut pas reconnaître qu'un nom de serveur et son adresse IP, ou deux alias DNS, désignent le même fichier.
+- **Options :** (a) 1. Égal ou contenu dans un chemin interdit (composantes entières) ; 2. égal seulement. (b) 1. Limite documentée dans le guide ; 2. résolution DNS/IP (hors périmètre).
+- **Recommandation :** (a) 1, par prudence ; (b) 1.
+- **Code concerné :** `traceur/securite.py` (provisoirement a1 + b1).
+- **Décision utilisateur :**
+
+### AMB-025 — Réinitialisation : copie directe ou via un fichier temporaire
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J4 / §10
+- **Contexte :** la règle de sécurité n'autorise la copie que « vers le chemin de la base de TEST, et uniquement vers ce chemin ». Un fichier temporaire suivi d'un remplacement atomique protégerait d'une copie interrompue, mais écrirait un autre fichier dans le dossier de TEST.
+- **Options :** 1. Copie directe vers `base_test`, puis vérification du hash SHA-256 ; en cas d'écart, erreur claire et base à considérer comme invalide jusqu'à une nouvelle réinitialisation réussie. 2. Fichier temporaire + remplacement atomique.
+- **Recommandation :** 1 (respecte la lettre de la règle ; la base de TEST est jetable).
+- **Code concerné :** `traceur/securite.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-026 — Mot de passe de base et groupe de travail (.mdw) simultanés
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J4 / §3, §4
+- **Contexte :** la SPEC prévoit `PWD` (mot de passe de base) et `SystemDB` + utilisateur + mot de passe du groupe de travail. Le pilote ODBC Access n'a qu'un paramètre `PWD` : avec `SystemDB`, c'est le mot de passe de l'utilisateur. Les deux protections sont en principe alternatives dans Jet.
+- **Options :** 1. Refuser la combinaison au démarrage avec un message clair. 2. Priorité au groupe de travail et ignorer `mot_de_passe`.
+- **Recommandation :** 1 (rien n'est ignoré en silence ; à lever si la vraie base combine les deux).
+- **Code concerné :** `traceur/config.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-027 — Cache du pilote Jet sur une connexion longue
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J4 / §3, §4 (`delai_stabilisation_s`), §5.2
+- **Contexte :** le moteur Jet met en cache les pages lues et ne les rafraîchit qu'après un délai (`PageTimeout`, 5 s par défaut). Une connexion ouverte avant l'action du comptable peut donc renvoyer, à la photo « après », des données périmées, même après `delai_stabilisation_s`. Non vérifiable ici (Linux) : à mesurer sur Windows (`tests/test_integration_access.py::test_cache_jet_connexion_longue`).
+- **Options :** 1. Rouvrir la connexion avant chaque photo (`SourceAccess.rafraichir()`), sans toucher au délai. 2. Garder une connexion unique et exiger un délai ≥ `PageTimeout`.
+- **Recommandation :** 1 (coût négligeable, indépendant du réglage du poste).
+- **Code concerné :** `traceur/sources/access.py` (`rafraichir()`, provisoirement option 1).
+- **Décision utilisateur :**

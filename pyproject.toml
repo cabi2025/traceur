@@ -8,6 +8,7 @@ dependencies = []
 [project.optional-dependencies]
 access = ["pyodbc"]
 ui = ["Pillow"]
+windows = ["pyodbc", "pywin32"]
 dev = ["pytest", "mypy"]
 build = ["pyinstaller"]
 
@@ -16,11 +17,12 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["traceur*"]
+include = ["traceur*", "outils*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = ["windows: test d'intégration Access (Windows, Python 32 bits, pywin32, pyodbc)"]
 
 [tool.mypy]
 files = ["traceur/moteur"]

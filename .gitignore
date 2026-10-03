@@ -11,3 +11,6 @@ __pycache__/
 build/
 dist/
 *.spec
+journal.log
+diagnostic_sorties/
+config_*.json
