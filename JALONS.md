@@ -9,7 +9,7 @@
 - [x] Lecture complète de `CLAUDE.md`, `docs/SPEC_TRACEUR.md`, `docs/formats/*`
 - [x] Squelette du dépôt conforme à SPEC §6.1, `pyproject.toml`, `.gitignore`, `pytest` qui tourne (test vide)
 - [x] Liste des ambiguïtés détectées à la lecture, inscrites dans `SUIVI_AMBIGUITES.md`
-- [ ] Compte rendu : plan d'implémentation des jalons J1 à J7, risques techniques identifiés
+- [x] Compte rendu : plan d'implémentation des jalons J1 à J7, risques techniques identifiés
 
 > 2026-10-03 — Squelette créé, `pytest` vert (1 test), `mypy --strict` OK, AMB-003 à AMB-010 inscrites. Reste à cocher : compte rendu / plan, en attente du **GO**. Python local 64 bits (le 32 bits sera nécessaire dès J4).
 
@@ -18,12 +18,17 @@
 ---
 
 ## J1 — Moteur : instantané + diff (F4, F5) sur SQLite
-- [ ] Interface `SourceDonnees` + implémentation SQLite
-- [ ] Normalisation des valeurs (SPEC §6.2), empreintes de lignes et de tables
-- [ ] Diff avec clé primaire : insert / update (champ à champ) / delete
-- [ ] Diff sans clé primaire : multiensembles, `update_probable`
-- [ ] Détection `schema_modifie`
-- [ ] Tests : PK / sans PK / doublons / nuls / dates / décimaux / espaces finaux / schéma modifié / table inchangée ignorée
+- [x] Interface `SourceDonnees` + implémentation SQLite
+- [x] Normalisation des valeurs (SPEC §6.2), empreintes de lignes et de tables
+- [x] Diff avec clé primaire : insert / update (champ à champ) / delete
+- [x] Diff sans clé primaire : multiensembles, `update_probable`
+- [x] Détection `schema_modifie`
+- [x] Tests : PK / sans PK / doublons / nuls / dates / décimaux / espaces finaux / schéma modifié / table inchangée ignorée
+
+> 2026-10-03 — Fait. 36 tests verts, `mypy --strict traceur/moteur` sans erreur, aucun flottant pour un montant (`Decimal` → chaîne exacte).
+> Ajouts demandés : mesure du temps de photo (`Instantane.resume()`, `tests/test_mesure_temps.py`) et `outils/version_jet.py` (AMB-001).
+> Mesure indicative sur SQLite en mémoire : 120 000 lignes en ~1,4 s — **ne vaut pas mesure sur la vraie base** (AMB-002 reste ouverte).
+> Décisions AMB-001, 003 à 010 recopiées dans le registre ; SPEC mise à jour. Nouvelles ambiguïtés ouvertes : AMB-011 à AMB-013 (`TODO` dans `diff.py`).
 
 **Acceptation :** tous les tests verts ; `mypy --strict traceur/moteur` sans erreur ; aucun flottant pour un montant.
 
