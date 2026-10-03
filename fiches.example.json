@@ -1,0 +1,38 @@
+{
+  "format_version": "1.0",
+  "lot": 2,
+  "fiches": [
+    {
+      "id": "S-003",
+      "titre": "Saisie facture achat avec TVA",
+      "lot": 2,
+      "duree_min": 3,
+      "prerequis": [
+        "Logiciel ouvert sur la base TEST",
+        "Traceur ouvert"
+      ],
+      "reinitialiser_avant": false,
+      "etapes": [
+        { "n": 1, "texte": "Ouvrir l'écran de saisie des écritures", "capture_ref": "001" },
+        { "n": 2, "texte": "Journal : ACH — Date : 15/01/2025 — Pièce : laisser vide" },
+        { "n": 3, "texte": "Ligne 1 : compte 6111 — libellé TEST-S003 — débit 1 234,56" },
+        { "n": 4, "texte": "Ligne 2 : compte 34552 — libellé TEST-S003 — débit 246,91" },
+        { "n": 5, "texte": "Ligne 3 : compte 4411 — libellé TEST-S003 — crédit 1 481,47" },
+        { "n": 6, "texte": "Cliquer sur « Valider »" }
+      ],
+      "valeurs_saisies": [
+        { "champ_ecran": "Journal", "ecran": "001", "valeur": "ACH", "type": "code" },
+        { "champ_ecran": "Date", "ecran": "001", "valeur": "2025-01-15", "type": "date" },
+        { "champ_ecran": "Compte", "ecran": "001", "valeur": "6111", "type": "code" },
+        { "champ_ecran": "Libellé", "ecran": "001", "valeur": "TEST-S003", "type": "texte" },
+        { "champ_ecran": "Débit", "ecran": "001", "valeur": "1234.56", "type": "montant" },
+        { "champ_ecran": "Débit", "ecran": "001", "valeur": "246.91", "type": "montant" },
+        { "champ_ecran": "Crédit", "ecran": "001", "valeur": "1481.47", "type": "montant" }
+      ],
+      "a_noter": [
+        "Numéro de pièce attribué",
+        "Message affiché après Valider"
+      ]
+    }
+  ]
+}

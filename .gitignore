@@ -1,0 +1,13 @@
+*.mdb
+*.ldb
+*.mdw
+*.accdb
+*.laccdb
+sorties/
+config.json
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+*.spec

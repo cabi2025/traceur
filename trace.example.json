@@ -1,0 +1,64 @@
+{
+  "format_version": "1.0",
+  "fiche": {
+    "id": "S-003",
+    "titre": "Saisie facture achat avec TVA",
+    "valeurs_saisies": [
+      { "champ_ecran": "Débit", "ecran": "001", "valeur": "1234.56", "type": "montant" }
+    ]
+  },
+  "execution": {
+    "debut": "2026-10-05T10:15:22",
+    "fin": "2026-10-05T10:18:04",
+    "poste": "PC-COMPTA",
+    "utilisateur_windows": "comptable",
+    "statut": "terminee",
+    "remarques": "Message : Écriture enregistrée sous le n° 2025-ACH-0042"
+  },
+  "base": {
+    "chemin": "\\\\SERVEUR\\Compta_TEST\\compta_test.mdb",
+    "empreinte_fichier_avant": "sha256:…"
+  },
+  "changements": [
+    {
+      "table": "ECRITURES",
+      "cle_utilisee": { "type": "primaire", "colonnes": ["NUM_ECR"] },
+      "inserts": [
+        { "cle": { "NUM_ECR": 18342 }, "valeurs": { "NUM_ECR": 18342, "JOURNAL": "ACH", "DATE_ECR": "2025-01-15T00:00:00", "PIECE": "0042", "VALIDE": 0 } }
+      ],
+      "updates": [],
+      "deletes": [],
+      "updates_probables": []
+    },
+    {
+      "table": "LIGNES",
+      "cle_utilisee": { "type": "aucune", "colonnes": [] },
+      "lignes_ajoutees": [
+        { "valeurs": { "NUM_ECR": 18342, "COMPTE": "6111", "LIBELLE": "TEST-S003", "DEBIT": "1234.56", "CREDIT": "0.00" } }
+      ],
+      "lignes_supprimees": [],
+      "updates_probables": []
+    },
+    {
+      "table": "COMPTEURS",
+      "cle_utilisee": { "type": "candidate", "colonnes": ["CODE_JOURNAL"] },
+      "inserts": [],
+      "updates": [
+        { "cle": { "CODE_JOURNAL": "ACH" }, "champs": [ { "colonne": "DERNIER_NUM", "avant": "41", "apres": "42" } ] }
+      ],
+      "deletes": []
+    }
+  ],
+  "bruit": [
+    { "table": "SESSIONS", "resume": "1 ligne modifiée (ignorée : table de bruit)" }
+  ],
+  "liens": [
+    { "champ_ecran": "Débit", "ecran": "001", "table": "LIGNES", "colonne": "DEBIT", "type_correspondance": "exacte", "confiance": "haute" }
+  ],
+  "champs_calcules": [
+    { "table": "ECRITURES", "colonne": "PIECE", "valeur": "0042", "hypotheses": ["compteur"], "details": "max avant = 0041" },
+    { "table": "COMPTEURS", "colonne": "DERNIER_NUM", "valeur": "42", "hypotheses": ["compteur"], "details": "41 → 42" }
+  ],
+  "ecarts_saisie": [],
+  "schema_modifie": []
+}

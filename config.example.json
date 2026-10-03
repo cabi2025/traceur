@@ -1,0 +1,16 @@
+{
+  "base_test": "\\\\SERVEUR\\Compta_TEST\\compta_test.mdb",
+  "mot_de_passe": "",
+  "fichier_mdw": "",
+  "utilisateur": "",
+  "mot_de_passe_mdw": "",
+  "instantane_reference": "D:\\Traceur\\reference\\compta_reference.mdb",
+  "chemins_interdits": [
+    "\\\\SERVEUR\\Compta\\compta.mdb"
+  ],
+  "fichier_fiches": "D:\\Traceur\\fiches\\lot1.json",
+  "dossier_sorties": "\\\\SERVEUR\\Partage\\Traceur\\sorties",
+  "tables_ignorees": [],
+  "encodage_texte": "cp1252",
+  "delai_stabilisation_s": 3
+}
