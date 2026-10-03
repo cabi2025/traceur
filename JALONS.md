@@ -87,11 +87,14 @@
 ---
 
 ## J5 — Rapports + dépôt (F9, F11)
-- [ ] `trace.json` conforme à `docs/formats/trace.example.json` (+ `format_version`)
-- [ ] `rapport.html` autonome et lisible par un non-technicien, en français
-- [ ] `index.html` des traces
-- [ ] Captures d'écran début/fin (Pillow `ImageGrab`)
-- [ ] Écriture en local puis déplacement atomique ; `en_attente_depot` + nouvelle tentative au démarrage
+- [x] `trace.json` conforme à `docs/formats/trace.example.json` (+ `format_version`)
+- [x] `rapport.html` autonome et lisible par un non-technicien, en français
+- [x] `index.html` des traces
+- [x] Captures d'écran début/fin (Pillow `ImageGrab`)
+- [x] Écriture en local puis déplacement atomique ; `en_attente_depot` + nouvelle tentative au démarrage
+
+> 2026-10-03 — Fait sous Linux : 293 tests `pytest` verts (12 sautés = intégration Access), `mypy --strict traceur/moteur` sans erreur. Rapport et index vérifiés dans Chromium. Simulation « partage indisponible puis rétabli » : `tests/test_depot.py` et `tests/test_demo_j5.py`. Reste à vérifier sous Windows : la vraie capture d'écran (`outils/LISEZMOI_J5.md`).
+> En tête de J5 : AMB-023 à 027 intégrées (`fichier_fiches` optionnel, résolution DNS des serveurs interdits, copie sans nouvelle tentative, `rafraichir()` avant chaque photo). Ouvertes : AMB-028, AMB-029 à AMB-031.
 
 **Acceptation :** rapport généré depuis une trace de test ; simulation d'un partage indisponible puis rétabli.
 

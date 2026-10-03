@@ -210,7 +210,9 @@ index.html                    # liste des traces, statut, liens
 ```
 Le journal `journal.log` est écrit **en local à côté de l'exécutable** et copié dans `dossier_sorties` à chaque dépôt. Il ne contient jamais de mot de passe.
 
-L'écriture se fait d'abord dans un dossier temporaire local, puis le dossier est **déplacé en une fois** vers `dossier_sorties`. Si le partage est inaccessible, la trace reste en local et son dépôt est marqué `en_attente_depot` (§8.2), avec une nouvelle tentative au démarrage suivant.
+`rapport.html` est une page autonome, en français : en-tête (fiche, dates, durée, poste, utilisateur), statut, résumé (« 3 tables modifiées, 4 lignes ajoutées, 1 modifiée »), remarques du comptable, ce que la fiche a écrit table par table (avant → après), valeurs saisies retrouvées, écarts de saisie, valeurs calculées (présentées comme hypothèses), tables de bruit, changements de structure, avertissements, captures. Les valeurs sont affichées telles que dans `trace.json`. Les captures sont des fichiers voisins ; une capture impossible (pas d'écran, Pillow absent) n'interrompt jamais la fiche : le rapport indique « Aucune capture disponible ». La capture est celle de l'écran principal. Une fiche annulée produit une trace sans comparaison.
+
+L'écriture se fait d'abord dans un dossier local (`traces_locales/`, à côté de l'exécutable), construit sous un nom caché puis renommé, puis le dossier est **déposé en une fois** dans `dossier_sorties/traces/` : copie vers un dossier caché du partage, vérification du SHA-256 de chaque fichier, puis renommage atomique ; le dossier local n'est supprimé qu'après succès. En cas de collision de nom, une trace identique est considérée comme déjà déposée, sinon un suffixe `_2`, `_3`… est ajouté. L'état de dépôt est mémorisé dans `depot.json` du dossier local (jamais copié vers le partage). Après chaque dépôt, `index.html` est reconstruit (écriture puis remplacement atomique). Si le partage est inaccessible, la trace reste en local et son dépôt est marqué `en_attente_depot` (§8.2), avec une nouvelle tentative au démarrage suivant.
 
 ### 8.1 `trace.json`
 Voir l'exemple complet dans `docs/formats/trace.example.json`. Clés de premier niveau :
@@ -228,7 +230,7 @@ Chaque élément de `avertissements[]` porte `table`, `code` (ex. `appariement_p
 ### 8.2 Statuts
 - `execution.statut` : `terminee` | `annulee` | `ecart_saisie`.
 - Statut d'une fiche (écran principal), dérivé de sa dernière trace : aucune trace → `à faire` ; `terminee` → `faite` ; `ecart_saisie` → `écart` ; `annulee` → `annulée`.
-- Dépôt : `deposee` | `en_attente_depot`, distinct du statut d'exécution (son stockage local est précisé en J5).
+- Dépôt : `deposee` | `en_attente_depot`, distinct du statut d'exécution ; mémorisé dans `depot.json` (`depot`, `tentatives`, `derniere_erreur`, `cree`) du dossier local.
 
 ## 9. Fiches de scénarios — format d'entrée
 Voir `docs/formats/fiches.example.json`. Une fiche contient :

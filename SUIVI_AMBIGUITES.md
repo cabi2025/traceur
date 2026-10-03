@@ -291,3 +291,34 @@
 - **Recommandation :** 1, avec repli sur 3 si aucun index « PrimaryKey » n'existe (ex. clé primaire renommée dans une base ancienne). À valider sur la vraie base avec `outils/sonder_pilote.py`.
 - **Code concerné :** `traceur/sources/access.py` (`_cle_primaire`, provisoirement option 1 + repli 3).
 - **Décision utilisateur :**
+
+---
+
+## Ambiguïtés détectées en J5 (2026-10-03)
+
+### AMB-029 — Dossier local de travail, marqueur de dépôt, mécanique du « déplacement atomique »
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J5 / §8, §8.2
+- **Contexte :** la SPEC dit « écriture dans un dossier temporaire local, puis déplacé en une fois » et « `en_attente_depot` avec nouvelle tentative au démarrage » sans préciser : (a) l'emplacement du dossier local ; (b) où est mémorisé l'état de dépôt ; (c) comment déplacer de façon atomique d'un disque local vers un partage réseau (un `rename` ne passe pas d'un volume à l'autre).
+- **Options :** (a) 1. `traces_locales/` à côté de l'exécutable (comme `journal.log`). (b) 1. Fichier `depot.json` dans le dossier local de la trace, jamais copié vers le partage. (c) 1. Copie vers un dossier caché `.NOM.depot-tmp` du partage, vérification SHA-256 de chaque fichier, puis renommage atomique vers `traces/NOM`, puis suppression de la copie locale. En cas de collision de nom : même `trace.json` → déjà déposée ; sinon suffixe `_2`, `_3`…
+- **Recommandation :** (a)(b)(c) ci-dessus.
+- **Code concerné :** `traceur/rapports/depot.py` (provisoirement comme recommandé).
+- **Décision utilisateur :**
+
+### AMB-030 — Captures d'écran : quel écran
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J5 / §5.2, §8 (F9)
+- **Contexte :** `ImageGrab.grab()` capture l'écran principal ; le logiciel legacy peut être sur un autre écran. La capture est une aide, jamais bloquante.
+- **Options :** 1. Écran principal ; en cas d'échec, trace sans capture et avertissement. 2. Tous les écrans (`all_screens=True`, image plus grande).
+- **Recommandation :** 1 en V1.
+- **Code concerné :** `traceur/captures.py` (provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-031 — Présentation des valeurs dans `rapport.html`
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J5 / §8
+- **Contexte :** « lisible par un non-technicien » : montants affichés comme stockés (`1234.56`, point décimal) et dates ISO, ou reformatés à la française (`1 234,56`, `15/01/2025`) ? Un reformatage facilite la lecture mais éloigne le rapport de `trace.json`.
+- **Options :** 1. Valeurs telles que dans `trace.json` ; seuls les en-têtes (début, fin) sont en format français. 2. Tout en format français.
+- **Recommandation :** 1 (le rapport sert aussi à retrouver une valeur saisie telle qu'elle a été fournie).
+- **Code concerné :** `traceur/rapports/rapport.py` (provisoirement option 1).
+- **Décision utilisateur :**

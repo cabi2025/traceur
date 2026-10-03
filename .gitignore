@@ -14,3 +14,4 @@ dist/
 journal.log
 diagnostic_sorties/
 config_*.json
+traces_locales/
