@@ -69,9 +69,11 @@
 - [x] Contrôles de démarrage : `chemins_interdits`, `base_test ≠ instantane_reference`, chemins normalisés (casse, UNC)
 - [x] Réinitialisation : confirmation, refus si `.ldb` présent, copie, vérification du hash, journal
 - [x] `outils/generer_mdb_test.py` (ADOX/pywin32) : base synthétique avec tables avec et sans PK, montants, dates
-- [ ] Test d'intégration sous Windows : diff sur une modification faite par un script tiers pendant que la base est ouverte
+- [x] Test d'intégration sous Windows : diff sur une modification faite par un script tiers pendant que la base est ouverte
 
-> 2026-10-03 — **Code livré, exécution Windows en attente.** Tout ce qui est testable sous Linux est vert (233 passés, 12 sautés = tests d'intégration Access, `mypy --strict traceur/moteur` sans erreur). La case « Test d'intégration sous Windows » reste à cocher après exécution de `outils/LISEZMOI_J4.md` (étapes 5, 9, 10).
+> 2026-10-03 — **J4 TERMINÉ.** Quatrième essai Windows (Python 32 bits) : **245 passed** (233 tests unitaires + 12 tests d'intégration Access), 0 échoué, 0 sauté. Critères d'acceptation : intégration verte sous Windows 32 bits ✔ ; INSERT et DELETE refusés via la connexion du traceur, `.mdb` inchangé (SHA-256) ✔ ; mot de passe absent des logs (base protégée, bon et mauvais mot de passe) ✔.
+> Historique : voir les essais 1 à 3 ci-dessous. Restent ouverts, sans bloquer J5 : AMB-001 (version Jet de la vraie base), AMB-002 (temps de photo réel), AMB-027 (ligne « connexion longue » à relever avec `pytest -s`), AMB-028 (clés primaires de la vraie base : `outils/sonder_pilote.py`).
+> Texte initial : Tout ce qui est testable sous Linux est vert (233 passés, 12 sautés = tests d'intégration Access, `mypy --strict traceur/moteur` sans erreur). La case « Test d'intégration sous Windows » reste à cocher après exécution de `outils/LISEZMOI_J4.md` (étapes 5, 9, 10).
 > Livrés : `traceur/config.py`, `traceur/securite.py`, `traceur/sources/access.py`, `outils/{generer_mdb_test,version_jet,simuler_logiciel,diagnostic}.py`, `tests/test_integration_access.py`.
 > Ambiguïtés ouvertes : AMB-023 à AMB-027 (dont AMB-027, cache Jet, à mesurer sur Windows).
 > Premier essai Windows (2026-10-03) : 224 tests unitaires + `test_python_32_bits` verts (225 passés) ; 11 tests d'intégration en échec à cause d'un seul défaut du générateur : la colonne `NOTE` (mot réservé Jet, synonyme de MEMO) → corrigé (colonne `COMMENTAIRE`, identifiants entre crochets). Nouvel essai demandé.
