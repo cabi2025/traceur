@@ -153,9 +153,9 @@ Sortie : `bruit.json` (format : `docs/formats/bruit.example.json`) avec les tabl
 ### 7.1 Lien saisie → colonne (F6)
 Chaque fiche déclare des **valeurs saisies** typées (§9). Pour chacune, le traceur cherche les correspondances dans les lignes insérées ou modifiées.
 - Correspondance exacte après normalisation de type : montant décimal, date (plusieurs formats : `AAAA-MM-JJ`, `JJ/MM/AAAA`, `JJ-MM-AAAA`, `JJ.MM.AAAA`), texte. Un `code` est comparé comme texte ; un entier égal au code (sans zéro de tête) est exact.
-- Correspondances tolérées, chacune signalée avec son type (`signe_inverse`, `x100`, `div100`, `date_heure`, `tronque`, `majuscules`) : signe inversé, montant × 100 ou ÷ 100, date stockée en date-heure, texte tronqué (au moins 3 caractères) ou en majuscules. Elles ne sont cherchées que s'il n'existe **aucune** correspondance exacte pour la valeur (AMB-020, à confirmer). Aucune tolérance pour un montant nul ni pour un `code`.
+- Correspondances tolérées, chacune signalée avec son type (`signe_inverse`, `x100`, `div100`, `date_heure`, `tronque`, `majuscules`) : signe inversé, montant × 100 ou ÷ 100, date stockée en date-heure, texte tronqué (au moins 3 caractères) ou en majuscules. Elles ne sont cherchées que s'il n'existe **aucune** correspondance exacte pour la valeur. Une date-heure à minuit pile est une correspondance `exacte` ; `date_heure` n'est utilisé que si l'heure est non nulle. Aucune tolérance pour un montant nul ni pour un `code`.
 - Seules les cellules écrites par l'action sont examinées : toutes les colonnes des lignes insérées, et uniquement les champs modifiés des lignes modifiées.
-- `confiance` (AMB-019, à confirmer) : `haute` (exacte, date_heure), `moyenne` (signe_inverse, majuscules, tronque), `faible` (x100, div100).
+- `confiance` : `haute` (exacte, date_heure), `moyenne` (signe_inverse, majuscules, tronque), `faible` (x100, div100).
 
 Le lien se fait **par valeur** : chaque lien porte la valeur saisie concernée (deux saisies d'un même champ d'écran donnent deux liens distincts). **Aucun lien automatique** n'est fait en V1 entre le texte libre des remarques (messages affichés) et les valeurs en base.
 
@@ -171,12 +171,14 @@ Tout champ d'une ligne insérée ou modifiée **non expliqué par F6** est un ch
 | Hypothèse | Test |
 |---|---|
 | `compteur` | Vaut max(colonne avant) + 1, ou + pas constant (pas déduit des écarts constants des valeurs d'avant ; pour plusieurs lignes insérées, max + 1, + 2, …). Pour une ligne modifiée : valeur avant + 1, ou + un delta identique sur au moins 2 lignes modifiées. Pour un texte : préfixe éventuel + suffixe numérique incrémenté, largeur conservée (ex. `0041` → `0042`, `ACH-0041` → `ACH-0042`) ; un texte entièrement numérique est le cas sans préfixe |
-| `horodatage_systeme` | Date ou heure comprise dans l'intervalle [Début, Fin] |
+| `horodatage_systeme` | Date ou heure comprise dans l'intervalle [Début − 2 min, Fin + 2 min] (marge d'écart d'horloge entre le poste et le serveur) |
 | `somme_lignes` | Égale à la somme d'une colonne numérique des lignes liées insérées dans le même diff |
 | `copie` | Égale à une valeur d'une autre table, lue dans la photo avant via une relation candidate |
 | `constante` | Toujours la même valeur sur toute la table (voir profil) |
 | `cumul_mis_a_jour` | Delta du champ égal à un montant saisi ou à son opposé |
 | `inconnu` | Aucune hypothèse ne tient |
+
+Les relations candidates de confiance `faible` sont exclues de `somme_lignes` et de `copie`.
 
 **Profil absent :** si aucun profil n'est disponible, les hypothèses qui en dépendent (`somme_lignes` et `copie`, qui utilisent les relations candidates, et `constante`) sont désactivées et un avertissement est inscrit dans le rapport (`avertissements[]`).
 
@@ -188,7 +190,7 @@ Aucune autre heuristique ne doit être ajoutée sans passer par `SUIVI_AMBIGUITE
 ### 7.4 Écart de saisie
 Une valeur attendue est introuvable, ou une valeur saisie diffère manifestement de la fiche (exemple : 1 243,56 trouvé au lieu de 1 234,56, même table et même colonne attendue). Le rapport porte alors le statut `ecart_saisie`.
 
-Règle V1 (AMB-021, à confirmer) : la « colonne attendue » est celle où d'autres saisies du même champ d'écran ont été liées dans la même trace. Une cellule écrite (non expliquée) de cette colonne « diffère manifestement » si sa forme normalisée est à une distance d'édition ≤ 1 (insertion, suppression, substitution ou transposition de deux caractères voisins) de la valeur attendue ; textes et codes d'au moins 4 caractères seulement. Sinon l'écart est `introuvable`. Chaque écart porte `champ_ecran`, `ecran`, `valeur_attendue`, `type_ecart` (`introuvable` | `valeur_differente`), `table`, `colonne`, `valeur_trouvee` (nuls pour `introuvable`).
+Règle V1 : la « colonne attendue » est celle où d'autres saisies du même champ d'écran ont été liées dans la même trace. Une cellule écrite (non expliquée) de cette colonne « diffère manifestement » si sa forme normalisée est à une distance de Damerau-Levenshtein ≤ 1 (insertion, suppression, substitution ou transposition de deux caractères voisins, comptée 1) de la valeur attendue ; textes et codes d'au moins 4 caractères seulement. Sinon l'écart est `introuvable`. Chaque écart porte `champ_ecran`, `ecran`, `valeur_attendue`, `type_ecart` (`introuvable` | `valeur_differente`), `table`, `colonne`, `valeur_trouvee` (nuls pour `introuvable`).
 
 ## 8. Sorties
 Arborescence dans `dossier_sorties` :

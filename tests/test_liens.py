@@ -5,6 +5,7 @@ from typing import Callable
 import pytest
 
 from conftest import Scenario, saisie
+import traceur.moteur.liens as liens_module
 from traceur.moteur.liens import distance
 
 Jouer = Callable[..., Scenario]
@@ -22,6 +23,8 @@ Jouer = Callable[..., Scenario]
         ("DATE", "2025-01-15", "date", "2025-01-15", ("exacte", "haute")),
         ("DATE", "2025-01-15", "date", "15/01/2025", ("exacte", "haute")),
         ("DATE", "2025-01-15", "date", "15-01-2025", ("exacte", "haute")),
+        ("DATETIME", "2025-01-15T00:00:00", "date", "2025-01-15", ("exacte", "haute")),  # minuit pile
+        ("DATETIME", "2025-01-15T00:00:01", "date", "2025-01-15", ("date_heure", "haute")),
         ("DATETIME", "2025-01-15T10:30:00", "date", "2025-01-15", ("date_heure", "haute")),
         ("TEXT", "15/01/2025", "date", "2025-01-15", ("exacte", "haute")),
         ("TEXT", "TEST-S003", "texte", "TEST-S003", ("exacte", "haute")),
@@ -53,6 +56,7 @@ def test_un_cas_par_type_de_correspondance(
         ("DECIMAL(12,2)", "5", "montant", "0"),  # aucune tolérance pour 0 (et 5 ≠ 0)
         ("TEXT", "1234.56", "montant", "1234.56"),  # montant stocké en texte : refusé
         ("TEXT", "x", "date", "2025-01-15"),
+        ("DATETIME", "2025-01-16T00:00:00", "date", "2025-01-15"),  # autre jour
     ],
 )
 def test_non_correspondances(
@@ -159,3 +163,46 @@ def test_ecart_texte_trop_court_non_compare(base: sqlite3.Connection, jouer: Jou
 )
 def test_distance(a: str, b: str, attendu: int) -> None:
     assert distance(a, b) == attendu
+
+
+def _levenshtein_simple(a: str, b: str) -> int:
+    """Levenshtein sans transposition : référence pour prouver que la transposition compte."""
+    ligne = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        precedent, ligne[0] = ligne[0], i
+        for j, cb in enumerate(b, 1):
+            precedent, ligne[j] = ligne[j], min(ligne[j] + 1, ligne[j - 1] + 1, precedent + (ca != cb))
+    return ligne[-1]
+
+
+def test_1243_56_detecte_par_la_transposition_et_non_par_accident(
+    base: sqlite3.Connection, jouer: Jouer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # La transposition « 34 » → « 43 » compte pour 1 en Damerau-Levenshtein, 2 en Levenshtein simple.
+    assert distance("1234.56", "1243.56") == 1
+    assert _levenshtein_simple("1234.56", "1243.56") == 2
+    base.execute("CREATE TABLE LIGNES (NUM INTEGER, DEBIT DECIMAL(12,2))")
+    requetes = ["INSERT INTO LIGNES VALUES (1, '1243.56')", "INSERT INTO LIGNES VALUES (1, '246.91')"]
+    saisies = [saisie("Débit", "1234.56"), saisie("Débit", "246.91")]
+    s = jouer(requetes, saisies)
+    assert [e.type_ecart for e in s.interpretation.ecarts_saisie] == ["valeur_differente"]
+    # Contre-épreuve : avec la distance sans transposition, l'écart n'est plus reconnu.
+    base.execute("DELETE FROM LIGNES")
+    monkeypatch.setattr(liens_module, "distance", _levenshtein_simple)
+    s = jouer(requetes, saisies)
+    assert [e.type_ecart for e in s.interpretation.ecarts_saisie] == ["introuvable"]
+
+
+def test_ecart_compare_sur_la_valeur_normalisee(base: sqlite3.Connection, jouer: Jouer) -> None:
+    """1234.50 attendu, 1243.5 trouvé : zéros finals sans effet, transposition reconnue."""
+    base.execute("CREATE TABLE LIGNES (NUM INTEGER, DEBIT DECIMAL(12,2))")
+    s = jouer(["INSERT INTO LIGNES VALUES (1, '1243.5')", "INSERT INTO LIGNES VALUES (1, '246.91')"],
+              [saisie("Débit", "1234.50"), saisie("Débit", "246.91")])
+    assert [e.type_ecart for e in s.interpretation.ecarts_saisie] == ["valeur_differente"]
+
+
+def test_deux_transpositions_ne_sont_pas_un_ecart(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE LIGNES (NUM INTEGER, DEBIT DECIMAL(12,2))")
+    s = jouer(["INSERT INTO LIGNES VALUES (1, '1324.65')", "INSERT INTO LIGNES VALUES (1, '246.91')"],
+              [saisie("Débit", "1234.56"), saisie("Débit", "246.91")])
+    assert [e.type_ecart for e in s.interpretation.ecarts_saisie] == ["introuvable"]

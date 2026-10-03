@@ -88,13 +88,24 @@ def test_compteur_ligne_modifiee_pas_constant(base: sqlite3.Connection, jouer: J
 def test_horodatage_systeme(base: sqlite3.Connection, jouer: Jouer) -> None:
     base.execute("CREATE TABLE E (ID INTEGER PRIMARY KEY, CREE DATETIME, ANCIEN DATETIME, "
                  "JOUR DATE, AUTRE_JOUR DATE)")
-    s = jouer(["INSERT INTO E VALUES (1, '2026-10-05T10:16:03', '2026-10-05T10:20:00', "
+    s = jouer(["INSERT INTO E VALUES (1, '2026-10-05T10:16:03', '2026-10-05T10:21:00', "
                "'2026-10-05', '2026-10-06')"])
     assert _champ(s, "E", "CREE").hypotheses == ("horodatage_systeme",)
     assert "2026-10-05T10:16:03 dans [2026-10-05T10:15:22, 2026-10-05T10:18:04]" in _champ(s, "E", "CREE").details
-    assert _champ(s, "E", "ANCIEN").hypotheses == ("inconnu",)  # après Fin
+    assert _champ(s, "E", "ANCIEN").hypotheses == ("inconnu",)  # après Fin + 2 min
     assert _champ(s, "E", "JOUR").hypotheses == ("horodatage_systeme",)  # date seule : le jour
     assert _champ(s, "E", "AUTRE_JOUR").hypotheses == ("inconnu",)
+
+
+def test_horodatage_marge_de_deux_minutes(base: sqlite3.Connection, jouer: Jouer) -> None:
+    """Début 10:15:22, Fin 10:18:04 : fenêtre [10:13:22, 10:20:04] (AMB-022)."""
+    base.execute("CREATE TABLE E (ID INTEGER PRIMARY KEY, T DATETIME)")
+    cas = {"2026-10-05T10:13:22": True, "2026-10-05T10:13:21": False,
+           "2026-10-05T10:20:04": True, "2026-10-05T10:20:05": False}
+    for valeur, dedans in cas.items():
+        s = jouer([f"INSERT INTO E (T) VALUES ('{valeur}')"])
+        h = _champ(s, "E", "T", __import__("datetime").datetime.fromisoformat(valeur)).hypotheses
+        assert (h == ("horodatage_systeme",)) is dedans, valeur
 
 
 # --- somme_lignes -----------------------------------------------------------------------------
@@ -132,6 +143,20 @@ def test_somme_lignes_desactivee_sans_profil(base: sqlite3.Connection, jouer: Jo
     assert "Profil absent" in a.message
 
 
+def test_somme_lignes_ignore_les_relations_faibles(base: sqlite3.Connection, jouer: Jouer) -> None:
+    """LIGNES.NUM_ECR n'a que 2 valeurs distinctes avant l'action : relation `faible`, exclue."""
+    base.execute("CREATE TABLE ECRITURES (NUM INTEGER PRIMARY KEY, TOTAL DECIMAL(12,2))")
+    base.execute("CREATE TABLE LIGNES (NUM_ECR INTEGER, DEBIT DECIMAL(12,2))")
+    for i in range(1, 6):
+        base.execute("INSERT INTO ECRITURES VALUES (?, ?)", (i, f"{i}0.00"))
+    for i in (1, 2, 1, 2):
+        base.execute("INSERT INTO LIGNES VALUES (?, '5.00')", (i,))
+    s = jouer(["INSERT INTO ECRITURES VALUES (6, '1481.47')",
+               "INSERT INTO LIGNES VALUES (6, '1234.56')", "INSERT INTO LIGNES VALUES (6, '246.91')"],
+              [saisie("Débit", "1234.56"), saisie("Débit", "246.91")], avec_profil=True)
+    assert _champ(s, "ECRITURES", "TOTAL").hypotheses == ("inconnu",)
+
+
 # --- copie ------------------------------------------------------------------------------------
 
 def test_copie(base: sqlite3.Connection, jouer: Jouer) -> None:
@@ -150,6 +175,17 @@ def test_copie(base: sqlite3.Connection, jouer: Jouer) -> None:
     assert _champ(s, "FACTURES", "TEL", "autre").hypotheses == ("inconnu",)
     s = jouer(["INSERT INTO FACTURES (CLIENT_ID, TEL) VALUES (104, '05104')"], avec_profil=False)
     assert _champ(s, "FACTURES", "TEL", "05104").hypotheses == ("inconnu",)
+
+
+def test_copie_ignore_les_relations_faibles(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE CLIENTS (ID INTEGER PRIMARY KEY, TEL TEXT)")
+    base.execute("CREATE TABLE FACTURES (NUM INTEGER PRIMARY KEY, CLIENT_ID INTEGER, TEL TEXT)")
+    for i in range(101, 106):
+        base.execute("INSERT INTO CLIENTS VALUES (?,?)", (i, f"05{i}"))
+    for i in (101, 102, 101, 102):  # 2 valeurs distinctes : relation faible
+        base.execute("INSERT INTO FACTURES (CLIENT_ID, TEL) VALUES (?,?)", (i, f"05{i}"))
+    s = jouer(["INSERT INTO FACTURES (CLIENT_ID, TEL) VALUES (103, '05103')"], avec_profil=True)
+    assert _champ(s, "FACTURES", "TEL").hypotheses != ("copie",)
 
 
 # --- constante --------------------------------------------------------------------------------
@@ -244,7 +280,7 @@ def test_forme_conforme_a_l_exemple(base: sqlite3.Connection, jouer: Jouer) -> N
     assert set(d["liens"][0]) == set(exemple["liens"][0])
     assert set(d["champs_calcules"][0]) == set(exemple["champs_calcules"][0])
     liens = {(x["champ_ecran"], x["table"], x["colonne"], x["type_correspondance"]) for x in d["liens"]}
-    assert ("Débit", "LIGNES", "DEBIT", "exacte") in liens and ("Date", "ECRITURES", "DATE_ECR", "date_heure") in liens
+    assert ("Débit", "LIGNES", "DEBIT", "exacte") in liens and ("Date", "ECRITURES", "DATE_ECR", "exacte") in liens
     by = {(c["table"], c["colonne"]): c for c in d["champs_calcules"]}
     assert by[("ECRITURES", "PIECE")] == {
         "table": "ECRITURES", "colonne": "PIECE", "valeur": "0042", "hypotheses": ["compteur"],

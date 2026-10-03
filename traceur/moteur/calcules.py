@@ -1,14 +1,14 @@
 """Champs calculés : hypothèses sur les valeurs non expliquées par F6 (F7, SPEC §7.2).
 
 Chaque résultat est une **hypothèse**, jamais une règle. Aucune autre heuristique que celles
-de la SPEC (§7.3). Détails provisoires : AMB-022.
+de la SPEC (§7.3). Détails : AMB-022 (validée).
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Callable, Mapping, Sequence
 
@@ -23,6 +23,7 @@ HYPOTHESES = (
     "compteur", "horodatage_systeme", "somme_lignes", "copie", "constante", "cumul_mis_a_jour",
 )
 HYPOTHESES_DU_PROFIL = ("somme_lignes", "copie", "constante")  # désactivées sans profil (AMB-010)
+MARGE_HORODATAGE = timedelta(minutes=2)  # AMB-022 : écart d'horloge poste / serveur
 _SUFFIXE = re.compile(r"^(.*?)(\d+)$", re.DOTALL)
 
 
@@ -144,20 +145,22 @@ def _compteur(c: Cellule, ctx: _Contexte) -> str | None:
 
 def _horodatage(c: Cellule, ctx: _Contexte) -> str | None:
     v = c.valeur
+    debut, fin = ctx.debut - MARGE_HORODATAGE, ctx.fin + MARGE_HORODATAGE
     if isinstance(v, datetime) and (v.hour, v.minute, v.second, v.microsecond) != (0, 0, 0, 0):
-        dans = ctx.debut <= v <= ctx.fin
+        dans = debut <= v <= fin
     elif isinstance(v, datetime):
-        dans = ctx.debut.date() <= v.date() <= ctx.fin.date()
+        dans = debut.date() <= v.date() <= fin.date()
     elif isinstance(v, date):
-        dans = ctx.debut.date() <= v <= ctx.fin.date()
+        dans = debut.date() <= v <= fin.date()
     else:
         return None
     if not dans:
         return None
-    return f"{v.isoformat()} dans [{ctx.debut.isoformat()}, {ctx.fin.isoformat()}]"
+    return f"{v.isoformat()} dans [{ctx.debut.isoformat()}, {ctx.fin.isoformat()}] ±2 min"
 
 
 def _relations(ctx: _Contexte) -> list[RelationCandidate]:
+    """Relations utilisables : confiance `normale` uniquement (AMB-022 : `faible` exclue)."""
     return [] if ctx.profil is None else [r for r in ctx.profil.relations if r.confiance == "normale"]
 
 
@@ -251,7 +254,7 @@ def detecter_champs_calcules(
     profil: Profil | None,
     avertissements: list[Avertissement],
 ) -> list[ChampCalcule]:
-    """Hypothèses pour chaque cellule non nulle non expliquée par F6 (TODO(AMB-022) : détails)."""
+    """Hypothèses pour chaque cellule non nulle non expliquée par F6 (détails : AMB-022)."""
     if profil is None:
         avertissements.append(
             Avertissement(

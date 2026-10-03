@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from typing import Any, Sequence
 
@@ -14,10 +14,10 @@ from .normalisation import valeur_json
 
 TYPES_SAISIE = ("montant", "date", "texte", "code")
 FORMATS_DATE = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y")
-LONGUEUR_MIN_TRONQUE = 3  # AMB-020
+LONGUEUR_MIN_TRONQUE = 3  # AMB-020 (validée)
 LONGUEUR_MIN_ECART_TEXTE = 4  # AMB-021
 
-# TODO(AMB-019) : échelle de confiance provisoire.
+# AMB-019 (validée) : échelle de confiance.
 CONFIANCE = {
     "exacte": "haute",
     "date_heure": "haute",
@@ -153,7 +153,10 @@ def _comparer(attendu: _Attendu, valeur: Any) -> str | None:
         return None
     if attendu.type == "date" and attendu.jour is not None:
         if isinstance(valeur, datetime):
-            return "date_heure" if valeur.date() == attendu.jour else None
+            if valeur.date() != attendu.jour:
+                return None
+            # AMB-020 : minuit pile = exacte ; `date_heure` seulement avec une heure non nulle.
+            return "exacte" if valeur.time() == time(0, 0) else "date_heure"
         if isinstance(valeur, date):
             return "exacte" if valeur == attendu.jour else None
         if isinstance(valeur, str):
@@ -202,7 +205,10 @@ def _attendu_normalise(attendu: _Attendu) -> str:
 
 
 def distance(a: str, b: str) -> int:
-    """Distance d'édition avec transposition de deux caractères voisins (OSA)."""
+    """Distance de Damerau-Levenshtein (une transposition de deux caractères voisins compte 1).
+
+    Variante « OSA » : identique à la distance complète pour le seuil ≤ 1 utilisé ici.
+    """
     d = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
     for i in range(len(a) + 1):
         d[i][0] = i
@@ -224,7 +230,7 @@ def chercher_liens(
 ) -> tuple[list[Lien], list[EcartSaisie], set[tuple[str, int, str]]]:
     """Liens saisie → colonne, écarts de saisie, et références des cellules expliquées.
 
-    Le lien se fait par valeur (AMB-009). TODO(AMB-020) : les correspondances tolérées ne sont cherchées que
+    Le lien se fait par valeur (AMB-009). Les correspondances tolérées ne sont cherchées que
     s'il n'existe aucune correspondance exacte pour la saisie (AMB-020).
     """
     liens: list[Lien] = []
@@ -278,7 +284,7 @@ def _ecart(
     cellules: Sequence[Cellule],
     expliquees: set[tuple[str, int, str]],
 ) -> EcartSaisie:
-    """TODO(AMB-021) : « manifestement différent » = distance ≤ 1, dans la colonne des saisies sœurs."""
+    """AMB-021 : « manifestement différent » = Damerau-Levenshtein ≤ 1, dans la colonne des saisies sœurs."""
     colonnes = colonnes_du_champ.get((saisie.champ_ecran, saisie.ecran), [])
     cible = _attendu_normalise(attendu)
     if attendu.type in ("texte", "code") and len(cible) < LONGUEUR_MIN_ECART_TEXTE:

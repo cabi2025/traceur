@@ -26,6 +26,7 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
    - Une ambiguïté n'est close qu'avec une **décision explicite de l'utilisateur**, recopiée dans le registre.
 3. **Pas de fonctionnalité hors périmètre.** Les fonctions marquées « V2 » dans la SPEC ne doivent pas être codées en V1. Prévois seulement les points d'extension décrits.
 4. Mets `JALONS.md` à jour (cases cochées, date, remarques) à la fin de chaque jalon.
+5. Tout compte rendu de jalon commence par : nombre de tests pytest verts / échoués, résultat de mypy --strict.
 
 ## Règles de sécurité (non négociables)
 - Le traceur **n'écrit jamais** dans la base tracée. Il l'ouvre **en lecture seule**.
