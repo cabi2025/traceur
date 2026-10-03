@@ -6,10 +6,12 @@
 ---
 
 ## J0 — Cadrage technique (pas de code métier)
-- [ ] Lecture complète de `CLAUDE.md`, `docs/SPEC_TRACEUR.md`, `docs/formats/*`
-- [ ] Squelette du dépôt conforme à SPEC §6.1, `pyproject.toml`, `.gitignore`, `pytest` qui tourne (test vide)
-- [ ] Liste des ambiguïtés détectées à la lecture, inscrites dans `SUIVI_AMBIGUITES.md`
+- [x] Lecture complète de `CLAUDE.md`, `docs/SPEC_TRACEUR.md`, `docs/formats/*`
+- [x] Squelette du dépôt conforme à SPEC §6.1, `pyproject.toml`, `.gitignore`, `pytest` qui tourne (test vide)
+- [x] Liste des ambiguïtés détectées à la lecture, inscrites dans `SUIVI_AMBIGUITES.md`
 - [ ] Compte rendu : plan d'implémentation des jalons J1 à J7, risques techniques identifiés
+
+> 2026-10-03 — Squelette créé, `pytest` vert (1 test), `mypy --strict` OK, AMB-003 à AMB-010 inscrites. Reste à cocher : compte rendu / plan, en attente du **GO**. Python local 64 bits (le 32 bits sera nécessaire dès J4).
 
 **Acceptation :** dépôt initialisé, `pytest` vert, registre des ambiguïtés à jour, plan validé par GO.
 
