@@ -498,3 +498,17 @@ def test_ecart_de_hash_pas_de_nouvelle_tentative_automatique(dossier: Path, capl
     with pytest.raises(ErreurSecurite, match="(?s)empreintes différentes.*Aucune nouvelle tentative"):
         reinitialiser_base_test(_cfg(dossier), lambda t: True, None, copie_corrompue)
     assert len(appels) == 1 and "empreintes différentes" in caplog.text
+
+
+def test_journal_unique_meme_apres_deux_configurations(tmp_path: Path) -> None:
+    """Au démarrage le journal est configuré sans secret, puis avec : le mot de passe ne doit jamais fuiter."""
+    configurer_journal([], tmp_path)
+    gestionnaire = configurer_journal(["S3cr3t!Test"], tmp_path)
+    try:
+        assert len([h for h in logging.getLogger("traceur").handlers if getattr(h, "_journal_traceur", False)]) == 1
+        logging.getLogger("traceur.test").info("mot de passe S3cr3t!Test")
+    finally:
+        logging.getLogger("traceur").removeHandler(gestionnaire)
+        gestionnaire.close()
+    contenu = (tmp_path / "journal.log").read_text(encoding="utf-8")
+    assert contenu.count("mot de passe ***") == 1 and "S3cr3t!Test" not in contenu

@@ -49,21 +49,35 @@ class Instantane:
         return "\n".join([entete, *lignes])
 
 
+Progression = Callable[[str, int, int], None]
+LOT_PROGRESSION = 20_000  # lignes lues entre deux notifications de progression
+
+
 def prendre_instantane(
     source: SourceDonnees,
     tables_ignorees: Collection[str] = (),
     horloge: Callable[[], float] = time.perf_counter,
+    progression: Progression | None = None,
 ) -> Instantane:
-    """Photographie toutes les tables non ignorées (comparaison des noms insensible à la casse)."""
+    """Photographie toutes les tables non ignorées (comparaison des noms insensible à la casse).
+
+    `progression(message, fait, total)` est appelée à chaque table et tous les `LOT_PROGRESSION`
+    lignes ; elle peut lever une exception pour interrompre la photo (annulation).
+    """
     ignorees = {nom.lower() for nom in tables_ignorees}
     instantane = Instantane()
     debut = horloge()
-    for nom in source.lister_tables():
-        if nom.lower() in ignorees:
-            continue
+    noms = [n for n in source.lister_tables() if n.lower() not in ignorees]
+    for position, nom in enumerate(noms):
         debut_table = horloge()
+        if progression is not None:
+            progression(f"Lecture de la table {nom}", position, len(noms))
         schema = source.schema(nom)
-        lignes = [Ligne(empreinte_ligne(v), v) for v in source.lire_lignes(nom)]
+        lignes: list[Ligne] = []
+        for valeurs in source.lire_lignes(nom):
+            lignes.append(Ligne(empreinte_ligne(valeurs), valeurs))
+            if progression is not None and len(lignes) % LOT_PROGRESSION == 0:
+                progression(f"Lecture de la table {nom} : {len(lignes)} lignes", position, len(noms))
         instantane.tables[nom] = TableInstantane(
             nom=nom,
             schema=schema,

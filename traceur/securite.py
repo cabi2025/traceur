@@ -256,6 +256,22 @@ def _verifier_logiciel_ferme(base: str) -> None:
         )
 
 
+def verifier_reinitialisation_possible(
+    config: Configuration,
+    resoudre_lecteur: ResolveurLecteur | None = lecteur_vers_unc,
+    resoudre_hote: ResolveurHote | None = None,
+) -> None:
+    """Contrôles préalables (F1, instantané présent, dossier présent, logiciel fermé) : l'interface les
+    exécute avant de demander la confirmation, pour ne pas faire confirmer une action impossible."""
+    verifier_demarrage(config, resoudre_lecteur, resoudre_hote)
+    reference, cible = config.instantane_reference, config.base_test
+    if not os.path.isfile(reference):
+        raise ErreurSecurite(f"RÉINITIALISATION IMPOSSIBLE : instantané de référence introuvable : {reference}")
+    if not os.path.isdir(os.path.dirname(os.path.abspath(cible))):
+        raise ErreurSecurite(f"RÉINITIALISATION IMPOSSIBLE : le dossier de la base de TEST n'existe pas : {cible}")
+    _verifier_logiciel_ferme(cible)
+
+
 def reinitialiser_base_test(
     config: Configuration,
     confirmer: Callable[[str], bool],
@@ -271,13 +287,8 @@ def reinitialiser_base_test(
     AMB-025 : copie directe, sans fichier temporaire ; en cas d'écart de hash, erreur claire et
     journal, sans nouvelle tentative automatique.
     """
-    verifier_demarrage(config, resoudre_lecteur, resoudre_hote)
+    verifier_reinitialisation_possible(config, resoudre_lecteur, resoudre_hote)
     reference, cible = config.instantane_reference, config.base_test
-    if not os.path.isfile(reference):
-        raise ErreurSecurite(f"RÉINITIALISATION IMPOSSIBLE : instantané de référence introuvable : {reference}")
-    if not os.path.isdir(os.path.dirname(os.path.abspath(cible))):
-        raise ErreurSecurite(f"RÉINITIALISATION IMPOSSIBLE : le dossier de la base de TEST n'existe pas : {cible}")
-    _verifier_logiciel_ferme(cible)
     if not confirmer(texte_confirmation(config)):
         journal.info("Réinitialisation annulée par l'utilisateur (%s).", cible)
         raise ReinitialisationAnnulee("Réinitialisation annulée : rien n'a été modifié.")
@@ -342,9 +353,13 @@ def configurer_journal(
     """Journal `journal.log` local à côté de l'exécutable (AMB-007), UTF-8, secrets masqués."""
     dossier = dossier or dossier_application()
     dossier.mkdir(parents=True, exist_ok=True)
-    gestionnaire = logging.FileHandler(dossier / "journal.log", encoding="utf-8")
-    gestionnaire.setFormatter(FormateurMasque(secrets))
     racine = logging.getLogger("traceur")
+    for ancien in [h for h in racine.handlers if getattr(h, "_journal_traceur", False)]:
+        racine.removeHandler(ancien)  # un seul journal : jamais un second, sans masquage, vers le même fichier
+        ancien.close()
+    gestionnaire = logging.FileHandler(dossier / "journal.log", encoding="utf-8")
+    gestionnaire._journal_traceur = True  # type: ignore[attr-defined]
+    gestionnaire.setFormatter(FormateurMasque(secrets))
     racine.setLevel(niveau)
     racine.addHandler(gestionnaire)
     return gestionnaire

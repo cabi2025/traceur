@@ -70,15 +70,18 @@ Voir l'exemple dans `docs/formats/config.example.json`.
 
 ### 5.2 Exécution d'une fiche
 - La fiche est affichée : titre, durée, prérequis, étapes numérotées avec case à cocher, référence de capture.
-- **Début** prend la photo avant et une capture d'écran, puis active les cases.
+- **Début** prend la photo avant, une capture d'écran et l'empreinte du fichier de la base, puis active les cases. Une fiche avec `reinitialiser_avant` propose de réinitialiser la base d'abord. « Annuler » pendant cette photo interrompt sans rien enregistrer.
 - **Fin** attend le délai de stabilisation, prend la photo après et une capture, calcule le diff et génère le rapport.
-- Champ libre **« Remarques / messages affichés »**, obligatoirement proposé avant de clôturer.
+- Champ libre **« Remarques / messages affichés »**, obligatoirement proposé avant de clôturer : s'il est vide, une confirmation explicite (« Terminer sans remarque ? ») est demandée.
 - **Annuler** (entre Début et Fin) : la trace est marquée `annulée` et conservée.
-- Pendant le calcul, une barre de progression s'affiche et l'interface ne doit jamais sembler figée.
+- Pendant le calcul, une barre de progression s'affiche et l'interface ne doit jamais sembler figée : les opérations longues (profilage, calibration, photos, diff, dépôt, réinitialisation) tournent hors du fil de l'interface, un bouton « Annuler l'opération » interrompt le profilage, la calibration et la photo de début, et tous les boutons sont désactivés pendant une opération. Chaque photo ouvre une connexion neuve.
+- Fermer la fenêtre pendant une fiche demande confirmation et enregistre la fiche comme annulée.
 
 ### 5.3 Fin de fiche
 - Résumé lisible : « 3 tables modifiées, 4 lignes ajoutées, 1 modifiée ».
-- **Alerte d'écart de saisie** si F8 détecte une valeur attendue introuvable (voir §7.4) : message simple, et proposition de réinitialiser puis rejouer.
+- **Alerte d'écart de saisie** si F8 détecte une valeur attendue introuvable (voir §7.4) : message simple, et bouton « Réinitialiser puis rejouer » (confirmation, réinitialisation, puis la même fiche est de nouveau proposée).
+- Le bouton « Ouvrir le rapport » ouvre `rapport.html` ; si le dépôt est en attente (partage indisponible), le résumé le dit et la trace est déposée au démarrage suivant.
+- La calibration propose les tables qui ont bougé ; l'utilisateur décoche celles à suivre normalement, puis valide (`bruit.json`).
 
 ## 6. Moteur
 
@@ -99,9 +102,14 @@ traceur/
   sources/
     access.py      # SourceDonnees via pyodbc/Jet
     sqlite.py      # SourceDonnees pour les tests
-  ui/              # Tkinter
+  ui/              # Tkinter : application.py (fenêtre), dialogues.py
   rapports/        # JSON + HTML
   securite.py      # F1, F10
+  config.py        # config.json (§4)
+  fiches.py        # fiches (§9) et statut dérivé des traces
+  controleur.py    # logique de l'application (§5), sans Tkinter ; opérations en fil de travail
+  captures.py      # F9
+  __main__.py      # point d'entrée : python -m traceur
 outils/
   version_jet.py   # version Jet d'un .mdb (octet 0x14)
   generer_mdb_test.py
@@ -210,7 +218,7 @@ index.html                    # liste des traces, statut, liens
 ```
 Le journal `journal.log` est écrit **en local à côté de l'exécutable** et copié dans `dossier_sorties` à chaque dépôt. Il ne contient jamais de mot de passe.
 
-`rapport.html` est une page autonome, en français : en-tête (fiche, dates, durée, poste, utilisateur), statut, résumé (« 3 tables modifiées, 4 lignes ajoutées, 1 modifiée »), remarques du comptable, ce que la fiche a écrit table par table (avant → après), valeurs saisies retrouvées, écarts de saisie, valeurs calculées (présentées comme hypothèses), tables de bruit, changements de structure, avertissements, captures. Les valeurs sont affichées telles que dans `trace.json`. Les captures sont des fichiers voisins ; une capture impossible (pas d'écran, Pillow absent) n'interrompt jamais la fiche : le rapport indique « Aucune capture disponible ». La capture est celle de l'écran principal. Une fiche annulée produit une trace sans comparaison.
+`rapport.html` est une page autonome, en français : en-tête (fiche, dates, durée, poste, utilisateur), statut, résumé (« 3 tables modifiées, 4 lignes ajoutées, 1 modifiée »), remarques du comptable, ce que la fiche a écrit table par table (avant → après), valeurs saisies retrouvées, écarts de saisie, valeurs calculées (présentées comme hypothèses), tables de bruit, changements de structure, avertissements, captures. Les valeurs sont affichées telles que dans `trace.json`. Les captures sont des fichiers voisins ; une capture impossible (pas d'écran, Pillow absent) n'interrompt jamais la fiche : le rapport indique « Aucune capture disponible ». La capture couvre **tous les écrans** (Pillow `ImageGrab.grab(all_screens=True)` sous Windows), avec repli sur l'écran principal en cas d'échec. Une fiche annulée produit une trace sans comparaison.
 
 L'écriture se fait d'abord dans un dossier local (`traces_locales/`, à côté de l'exécutable), construit sous un nom caché puis renommé, puis le dossier est **déposé en une fois** dans `dossier_sorties/traces/` : copie vers un dossier caché du partage, vérification du SHA-256 de chaque fichier, puis renommage atomique ; le dossier local n'est supprimé qu'après succès. En cas de collision de nom, une trace identique est considérée comme déjà déposée, sinon un suffixe `_2`, `_3`… est ajouté. L'état de dépôt est mémorisé dans `depot.json` du dossier local (jamais copié vers le partage). Après chaque dépôt, `index.html` est reconstruit (écriture puis remplacement atomique). Si le partage est inaccessible, la trace reste en local et son dépôt est marqué `en_attente_depot` (§8.2), avec une nouvelle tentative au démarrage suivant.
 

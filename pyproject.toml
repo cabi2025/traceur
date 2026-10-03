@@ -22,7 +22,10 @@ include = ["traceur*", "outils*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-markers = ["windows: test d'intégration Access (Windows, Python 32 bits, pywin32, pyodbc)"]
+markers = [
+    "windows: test d'intégration Access (Windows, Python 32 bits, pywin32, pyodbc)",
+    "ui: test de l'interface Tkinter (nécessite un écran ; sous Linux : xvfb-run)",
+]
 
 [tool.mypy]
 files = ["traceur/moteur"]

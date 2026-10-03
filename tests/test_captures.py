@@ -45,12 +45,39 @@ def test_pillow_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert capturer_ecran(tmp_path / "c.png") is False
 
 
-def test_capture_par_defaut_utilise_imagegrab(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    appels: list[str] = []
+def _faux_pil(monkeypatch: pytest.MonkeyPatch, grab: Any) -> None:
     pil = types.ModuleType("PIL")
-    grab = types.ModuleType("PIL.ImageGrab")
-    grab.grab = lambda: appels.append("grab") or _Image()  # type: ignore[attr-defined]
-    pil.ImageGrab = grab  # type: ignore[attr-defined]
+    module = types.ModuleType("PIL.ImageGrab")
+    module.grab = grab  # type: ignore[attr-defined]
+    pil.ImageGrab = module  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "PIL", pil)
-    monkeypatch.setitem(sys.modules, "PIL.ImageGrab", grab)
-    assert capturer_ecran(tmp_path / "c.png") is True and appels == ["grab"]
+    monkeypatch.setitem(sys.modules, "PIL.ImageGrab", module)
+
+
+def test_capture_par_defaut_prend_tous_les_ecrans(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    appels: list[dict[str, Any]] = []
+    _faux_pil(monkeypatch, lambda **options: appels.append(options) or _Image())
+    assert capturer_ecran(tmp_path / "c.png") is True and appels == [{"all_screens": True}]
+
+
+def test_repli_sur_l_ecran_principal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    appels: list[dict[str, Any]] = []
+
+    def grab(**options: Any) -> Any:
+        appels.append(options)
+        if options:
+            raise OSError("all_screens non pris en charge")
+        return _Image()
+
+    caplog.set_level(logging.INFO, "traceur")
+    _faux_pil(monkeypatch, grab)
+    assert capturer_ecran(tmp_path / "c.png") is True and appels == [{"all_screens": True}, {}]
+    assert "repli sur l'écran principal" in caplog.text
+
+
+def test_echec_total_des_deux_captures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def grab(**options: Any) -> Any:
+        raise OSError("pas d'écran")
+
+    _faux_pil(monkeypatch, grab)
+    assert capturer_ecran(tmp_path / "c.png") is False

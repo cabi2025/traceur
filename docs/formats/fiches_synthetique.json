@@ -1,0 +1,41 @@
+{
+  "format_version": "1.0",
+  "lot": 1,
+  "fiches": [
+    {
+      "id": "S-SYN-01",
+      "titre": "Facture de démonstration (base synthétique)",
+      "duree_min": 2,
+      "prerequis": [
+        "Base synthétique générée par outils\\generer_mdb_test.py",
+        "Un 2e terminal ouvert dans le dossier du projet"
+      ],
+      "reinitialiser_avant": false,
+      "etapes": [
+        { "n": 1, "texte": "Dans le 2e terminal, lancer : python outils\\simuler_logiciel.py <chemin de la base synthétique> (il joue le rôle du logiciel de comptabilité)" },
+        { "n": 2, "texte": "Attendre l'affichage d'un résultat JSON, puis revenir ici" },
+        { "n": 3, "texte": "Noter le numéro de facture affiché (champ « facture »)" }
+      ],
+      "valeurs_saisies": [
+        { "champ_ecran": "Montant", "ecran": "001", "valeur": "1234.56", "type": "montant" },
+        { "champ_ecran": "Commentaire", "ecran": "001", "valeur": "TEST-SIM", "type": "texte" }
+      ],
+      "a_noter": [ "Numéro de facture affiché par le script" ]
+    },
+    {
+      "id": "S-SYN-02",
+      "titre": "Écart de saisie volontaire (la valeur attendue n'existe pas)",
+      "duree_min": 2,
+      "prerequis": [ "Même préparation que S-SYN-01" ],
+      "reinitialiser_avant": false,
+      "etapes": [
+        { "n": 1, "texte": "Lancer le script simuler_logiciel.py comme pour S-SYN-01" },
+        { "n": 2, "texte": "Cliquer sur « Fin » : le montant attendu 9999.99 n'a pas été écrit, un écart de saisie doit être signalé" }
+      ],
+      "valeurs_saisies": [
+        { "champ_ecran": "Montant", "ecran": "001", "valeur": "9999.99", "type": "montant" }
+      ],
+      "a_noter": []
+    }
+  ]
+}

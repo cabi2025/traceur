@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import datetime
 from decimal import Decimal
@@ -202,3 +203,15 @@ def test_taux_sur_valeurs_distinctes_informatif(base: sqlite3.Connection) -> Non
     assert (rel.nb_distincts_inclus, rel.nb_distincts_source) == (1, 3)
     d = profiler(SourceSqlite(base)).vers_dict()["relations_candidates"][0]
     assert d["taux_inclusion_distincts"] == "0.3333" and d["confiance"] == "normale"
+
+
+def test_profil_relu_depuis_json_retrouve_ses_types(compta: sqlite3.Connection) -> None:
+    from traceur.moteur.profilage import Profil
+
+    profil = profiler(SourceSqlite(compta))
+    relu = Profil.depuis_dict(json.loads(json.dumps(profil.vers_dict())))
+    assert relu.vers_dict() == profil.vers_dict() and relu.date == profil.date.replace(microsecond=0)
+    colonnes = {c.nom: c for c in relu.table("FACTURES").colonnes}
+    assert colonnes["MONTANT"].min == Decimal("1001.37") and isinstance(colonnes["MONTANT"].min, Decimal)
+    assert str(colonnes["DATE_F"].min) == "2025-01-01" and colonnes["NUM"].max == 1200 and colonnes["STATUT"].min == "P"
+    assert relu.relations == profil.relations and relu.table("LIGNES").cles_candidates == (("NUM_FACT", "RANG"),)

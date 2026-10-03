@@ -297,28 +297,67 @@
 ## Ambiguïtés détectées en J5 (2026-10-03)
 
 ### AMB-029 — Dossier local de travail, marqueur de dépôt, mécanique du « déplacement atomique »
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J5 / §8, §8.2
 - **Contexte :** la SPEC dit « écriture dans un dossier temporaire local, puis déplacé en une fois » et « `en_attente_depot` avec nouvelle tentative au démarrage » sans préciser : (a) l'emplacement du dossier local ; (b) où est mémorisé l'état de dépôt ; (c) comment déplacer de façon atomique d'un disque local vers un partage réseau (un `rename` ne passe pas d'un volume à l'autre).
 - **Options :** (a) 1. `traces_locales/` à côté de l'exécutable (comme `journal.log`). (b) 1. Fichier `depot.json` dans le dossier local de la trace, jamais copié vers le partage. (c) 1. Copie vers un dossier caché `.NOM.depot-tmp` du partage, vérification SHA-256 de chaque fichier, puis renommage atomique vers `traces/NOM`, puis suppression de la copie locale. En cas de collision de nom : même `trace.json` → déjà déposée ; sinon suffixe `_2`, `_3`…
 - **Recommandation :** (a)(b)(c) ci-dessus.
-- **Code concerné :** `traceur/rapports/depot.py` (provisoirement comme recommandé).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Validé ; dossier local à côté de l'exécutable (cohérent avec AMB-007) ; mécanique du dépôt et format de `depot.json` décrits dans la SPEC.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-030 — Captures d'écran : quel écran
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J5 / §5.2, §8 (F9)
 - **Contexte :** `ImageGrab.grab()` capture l'écran principal ; le logiciel legacy peut être sur un autre écran. La capture est une aide, jamais bloquante.
 - **Options :** 1. Écran principal ; en cas d'échec, trace sans capture et avertissement. 2. Tous les écrans (`all_screens=True`, image plus grande).
 - **Recommandation :** 1 en V1.
-- **Code concerné :** `traceur/captures.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Capturer tous les écrans (`ImageGrab.grab(all_screens=True)` sous Windows), repli sur l'écran principal en cas d'échec.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-031 — Présentation des valeurs dans `rapport.html`
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J5 / §8
 - **Contexte :** « lisible par un non-technicien » : montants affichés comme stockés (`1234.56`, point décimal) et dates ISO, ou reformatés à la française (`1 234,56`, `15/01/2025`) ? Un reformatage facilite la lecture mais éloigne le rapport de `trace.json`.
 - **Options :** 1. Valeurs telles que dans `trace.json` ; seuls les en-têtes (début, fin) sont en format français. 2. Tout en format français.
 - **Recommandation :** 1 (le rapport sert aussi à retrouver une valeur saisie telle qu'elle a été fournie).
-- **Code concerné :** `traceur/rapports/rapport.py` (provisoirement option 1).
+- **Décision utilisateur :** Valeurs brutes (comme dans `trace.json`) validées dans le rapport.
+- **Date de clôture :** 2026-10-03
+
+---
+
+## Ambiguïtés détectées en J6 (2026-10-03)
+
+### AMB-032 — Empreinte SHA-256 du fichier `.mdb` à chaque « Début »
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J6 / §8.1 (`base.empreinte_fichier_avant`)
+- **Contexte :** la trace porte l'empreinte du fichier avant l'action. La calculer lit tout le `.mdb` (gros fichier, partage réseau) à chaque « Début ».
+- **Options :** 1. La calculer à chaque « Début » (non bloquant : si elle échoue, `null` + avertissement). 2. La calculer seulement à la demande. 3. L'abandonner.
+- **Recommandation :** 1 tant que la durée reste raisonnable ; à mesurer sur la vraie base (étape 13 de `LISEZMOI_J4.md`).
+- **Code concerné :** `traceur/controleur.py` (`debut`, provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-033 — Persistance locale du profil et de la calibration
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J6 / §5.1, §6.4, §6.5, §8
+- **Contexte :** le bandeau affiche « la date du dernier profilage » et la calibration doit survivre au redémarrage. La SPEC place `profil/` et `calibration/` dans `dossier_sorties` (partage, parfois indisponible). Rien n'est dit d'un profil devenu périmé (réinitialisation, base modifiée).
+- **Options :** 1. Écrire dans `donnees_locales/` (à côté du programme) puis copier sur le partage ; recharger le profil local au démarrage ; ne pas détecter la péremption (l'utilisateur reprofile quand il le juge utile). 2. Détecter un profil plus ancien que le fichier de la base.
+- **Recommandation :** 1.
+- **Code concerné :** `traceur/controleur.py` (`_publier`, `_charger_etat_local`, provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-034 — Cases à cocher des étapes
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J6 / §5.2, §8.1
+- **Contexte :** l'écran propose une case par étape, mais le format de `trace.json` n'a aucun champ pour les étapes cochées.
+- **Options :** 1. Aide visuelle pour le comptable, état non enregistré. 2. Ajouter `execution.etapes_cochees` au format (version de format à incrémenter).
+- **Recommandation :** 1 en V1.
+- **Code concerné :** `traceur/controleur.py` (`SessionFiche.cochees`, provisoirement option 1).
+- **Décision utilisateur :**
+
+### AMB-035 — Comportements de l'écran de fiche non précisés
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J6 / §5.2, §9
+- **Contexte :** (a) `reinitialiser_avant: true` : imposé ou proposé ? (b) « Remarques obligatoirement proposées » : un champ vide est-il accepté ? (c) « Annuler » pendant la photo de « Début » : trace ou rien ? (d) heures `debut` et `fin` de la trace (elles bornent `horodatage_systeme`).
+- **Options / recommandation :** (a) l'interface propose la réinitialisation, l'utilisateur peut refuser ; (b) champ vide accepté après une confirmation explicite (« Terminer sans remarque ? ») ; (c) annulation sans trace (la fiche n'a pas commencé) ; (d) `debut` = fin de la photo avant, `fin` = clic sur « Fin » (avant le délai de stabilisation).
+- **Code concerné :** `traceur/ui/application.py`, `traceur/controleur.py` (provisoirement comme recommandé).
 - **Décision utilisateur :**

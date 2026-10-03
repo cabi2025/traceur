@@ -50,16 +50,28 @@ def calibrer(
     tables_ignorees: Collection[str] = (),
     dormir: Callable[[float], None] = time.sleep,
     maintenant: Callable[[], datetime] = datetime.now,
+    rafraichir: Callable[[], None] | None = None,
+    progression: Callable[[str, int, int], None] | None = None,
 ) -> Calibration:
     """Deux photos espacées de `intervalle_s` secondes, sans action. Propose les tables qui changent.
 
     Par défaut toutes les tables proposées sont retenues ; l'utilisateur ajuste avec `valider`.
-    Les `tables_ignorees` (configuration) sont exclues des photos (AMB-018).
+    Les `tables_ignorees` (configuration) sont exclues des photos (AMB-018). `rafraichir` est appelée
+    avant la 2e photo (rouvre la connexion : cache du pilote Jet, AMB-027). `progression` et
+    `dormir` permettent d'afficher l'avancement et d'annuler (en levant une exception).
     """
     debut = maintenant()
-    avant = prendre_instantane(source, tables_ignorees)
+    if progression is not None:
+        progression("Première photo", 0, 3)
+    avant = prendre_instantane(source, tables_ignorees, progression=progression)
+    if progression is not None:
+        progression(f"Attente de {intervalle_s:g} s, sans toucher au logiciel", 1, 3)
     dormir(intervalle_s)
-    apres = prendre_instantane(source, tables_ignorees)
+    if rafraichir is not None:
+        rafraichir()
+    if progression is not None:
+        progression("Deuxième photo", 2, 3)
+    apres = prendre_instantane(source, tables_ignorees, progression=progression)
     resultat = comparer_instantanes(avant, apres)
     calibration = Calibration(
         debut, maintenant(), intervalle_s, tables_ignorees=sorted(tables_ignorees)

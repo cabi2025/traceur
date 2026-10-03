@@ -109,6 +109,27 @@ class Profil:
     def table(self, nom: str) -> TableProfil:
         return next(t for t in self.tables if t.nom == nom)
 
+    @classmethod
+    def depuis_dict(cls, donnees: dict[str, Any]) -> Profil:
+        """Relit un `profil.json` (types des min/max restaurés d'après les types observés)."""
+        profil = cls(datetime.fromisoformat(donnees["date"]), donnees.get("version_jet"))
+        for t in donnees["tables"]:
+            colonnes = tuple(
+                ColonneProfil(
+                    c["nom"], c["type_declare"], tuple(c["types_observes"]), c["nb_nuls"], Decimal(c["pct_nuls"]),
+                    c["nb_distincts"], _valeur_depuis_json(c["min"], tuple(c["types_observes"])),
+                    _valeur_depuis_json(c["max"], tuple(c["types_observes"])))
+                for c in t["colonnes"])
+            profil.tables.append(TableProfil(t["nom"], t["nb_lignes"], tuple(t["cle_primaire"]), colonnes,
+                                             tuple(tuple(k) for k in t["cles_candidates"])))
+        profil.relations = [
+            RelationCandidate(r["table_source"], r["colonne_source"], r["table_cible"], r["colonne_cible"],
+                              Decimal(r["taux_inclusion"]), r["nb_valeurs"], r["nb_incluses"],
+                              Decimal(r["taux_inclusion_distincts"]), r["nb_distincts_source"],
+                              r["nb_distincts_inclus"], r["confiance"])
+            for r in donnees["relations_candidates"]]
+        return profil
+
     def vers_dict(self) -> dict[str, Any]:
         return {
             "format_version": "1.0",
@@ -153,6 +174,24 @@ class Profil:
                 for r in self.relations
             ],
         }
+
+
+def _valeur_depuis_json(valeur: Any, types: tuple[str, ...]) -> Any:
+    """Restaure le type d'un min/max lu dans `profil.json` d'après `types_observes`."""
+    if valeur is None or len(types) != 1:
+        return valeur
+    try:
+        if types[0] == "Decimal":
+            return Decimal(valeur)
+        if types[0] == "datetime":
+            return datetime.fromisoformat(valeur)
+        if types[0] == "date":
+            return date.fromisoformat(valeur)
+        if types[0] == "float":
+            return float(valeur)
+    except (ValueError, ArithmeticError, TypeError):
+        return None
+    return valeur
 
 
 class _Accumulateur:
@@ -205,7 +244,7 @@ class _Accumulateur:
 
 
 def _profiler_table(
-    nom: str, source: SourceDonnees
+    nom: str, source: SourceDonnees, notifier: Callable[[int], None] | None = None
 ) -> tuple[TableProfil, dict[str, _Accumulateur]]:
     schema = source.schema(nom)
     noms = schema.noms()
@@ -215,6 +254,8 @@ def _profiler_table(
         nb_lignes += 1
         for n, valeur in zip(noms, ligne):
             acc[n].ajouter(valeur)
+        if notifier is not None and nb_lignes % 20_000 == 0:
+            notifier(nb_lignes)
     colonnes = []
     for colonne in schema.colonnes:
         a = acc[colonne.nom]
@@ -351,16 +392,25 @@ def profiler(
     version_jet: str | None = None,
     maintenant: Callable[[], datetime] = datetime.now,
     horloge: Callable[[], float] = time.perf_counter,
+    progression: Callable[[str, int, int], None] | None = None,
 ) -> Profil:
-    """Profile toutes les tables non ignorées. `version_jet` est affichée dans le profil."""
+    """Profile toutes les tables non ignorées. `version_jet` est affichée dans le profil.
+
+    `progression(message, fait, total)` : à chaque table et tous les 20 000 lignes ; elle peut
+    lever une exception pour interrompre le profilage (annulation).
+    """
     debut = horloge()
     ignorees = {n.lower() for n in tables_ignorees}
     profil = Profil(maintenant(), version_jet)
     accs: dict[str, Mapping[str, _Accumulateur]] = {}
-    for nom in source.lister_tables():
-        if nom.lower() in ignorees:
-            continue
-        table, acc = _profiler_table(nom, source)
+    noms_tables = [n for n in source.lister_tables() if n.lower() not in ignorees]
+    for position, nom in enumerate(noms_tables):
+        if progression is not None:
+            progression(f"Profilage de la table {nom}", position, len(noms_tables))
+        notifier = None if progression is None else (
+            lambda n, nom=nom, position=position: progression(
+                f"Profilage de la table {nom} : {n} lignes", position, len(noms_tables)))
+        table, acc = _profiler_table(nom, source, notifier)
         profil.tables.append(table)
         accs[nom] = acc
     profil.relations = _relations(profil.tables, accs)

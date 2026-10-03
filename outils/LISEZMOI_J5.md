@@ -26,7 +26,7 @@ Index : C:\Traceur\sorties\index.html
 ```
 
 - Ouvrez `C:\Traceur\sorties\index.html` : une ligne « S-DEMO » avec le statut **Terminée** et un lien « Ouvrir le rapport ».
-- Dans le rapport, vérifiez : le texte est en français ; « 3 tables modifiées, 2 lignes ajoutées, 1 modifiée » ; les tableaux avant/après ; les deux **captures d'écran** en bas de page (votre écran au moment du lancement).
+- Dans le rapport, vérifiez : le texte est en français ; « 3 tables modifiées, 2 lignes ajoutées, 1 modifiée » ; les tableaux avant/après ; les deux **captures d'écran** en bas de page (tous vos écrans au moment du lancement ; si vous avez deux écrans, les deux doivent apparaître).
 - Dossier de la trace : `trace.json`, `rapport.html`, `remarques.txt`, `capture_debut.png`, `capture_fin.png` (pas de `depot.json`).
 - Si « Capture … IMPOSSIBLE (voir journal) » s'affiche : Pillow est absent ou l'écran est inaccessible (session distante verrouillée). La trace est tout de même déposée avec « Aucune capture disponible » (la capture ne bloque jamais une fiche).
 

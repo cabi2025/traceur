@@ -101,11 +101,16 @@
 ---
 
 ## J6 — Interface Tkinter (F8)
-- [ ] Écran principal, exécution de fiche, fin de fiche (SPEC §5)
-- [ ] Chargement de `fiches.example.json`, statuts des fiches
-- [ ] Barre de progression, interface jamais figée (calculs hors thread UI)
-- [ ] Annuler, remarques, alerte d'écart de saisie
-- [ ] Messages d'erreur en français, détail dans `journal.log`
+- [x] Écran principal, exécution de fiche, fin de fiche (SPEC §5)
+- [x] Chargement de `fiches.example.json`, statuts des fiches
+- [x] Barre de progression, interface jamais figée (calculs hors thread UI)
+- [x] Annuler, remarques, alerte d'écart de saisie
+- [x] Messages d'erreur en français, détail dans `journal.log`
+
+> 2026-10-03 — **Livré, parcours Windows en attente.** Sous Linux : Python 3.11 → 352 passés, 14 sautés (12 Access + 2 Tkinter) ; Python 3.12 avec écran virtuel (`xvfb-run`) → 380 passés, 12 sautés (Access seulement), dont 27 tests de la vraie fenêtre Tkinter et 5 du point d'entrée. `mypy --strict traceur/moteur` sans erreur.
+> Attendu sous Windows : 392 passés, 0 sauté (`outils/LISEZMOI_J6.md`, étape 0). Reste à vérifier chez vous le rendu réel et le parcours complet (étapes 2 à 11).
+> En tête de J6 : AMB-029, 030, 031 closes (captures de tous les écrans). Nouvelles ambiguïtés ouvertes : AMB-032 à AMB-035.
+> Correction de sécurité trouvée par les tests : au lancement, le journal était configuré deux fois (sans puis avec secret) et le premier gestionnaire n'avait pas le masquage → un seul journal désormais.
 
 **Acceptation :** parcours complet sur la base synthétique : profiler → calibrer → fiche → rapport → réinitialiser.
 
