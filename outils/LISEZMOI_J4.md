@@ -75,8 +75,8 @@ Si la liste ne contient aucun pilote Access :
 python -m pytest -q -rs
 ```
 
-**Résultat attendu :** `242 passed` et **aucune ligne `SKIPPED`**.
-(Sous Linux, ces mêmes tests donnent « 230 passed, 12 skipped » : les 12 sautés sont les tests d'intégration Access, qui ne peuvent tourner que chez vous.)
+**Résultat attendu :** `245 passed` et **aucune ligne `SKIPPED`**.
+(Sous Linux, ces mêmes tests donnent « 233 passed, 12 skipped » : les 12 sautés sont les tests d'intégration Access, qui ne peuvent tourner que chez vous.)
 Si des tests sont sautés, la raison s'affiche (`pyodbc`/`pywin32` absent, pilote invisible, Python 64 bits) : corrigez et relancez.
 
 ## 6. Créer une base synthétique
@@ -263,6 +263,14 @@ Puis, **en lecture seule** :
 python outils\version_jet.py "chemin\de\la\copie_de_test.mdb"
 python outils\diagnostic.py --config config_reel.json --photo --profil
 ```
+
+Lancez aussi la sonde des clés primaires (lecture seule) : elle montre ce que le pilote répond pour **chaque table de votre base** et quels index existent. C'est ce qui permet de savoir si les clés primaires de votre base sont reconnues (AMB-028) :
+
+```bat
+python outils\sonder_pilote.py "chemin\de\la\copie_de_test.mdb"
+```
+
+Pour chaque table, une ligne `statistics : index='PrimaryKey' ...` signifie que sa clé primaire est reconnue ; sinon le traceur utilise les clés candidates du profilage (le diff reste correct) et `journal.log` contient « Table X : aucun index « PrimaryKey » ; index vus : … ».
 
 Notez : la version Jet, le nombre de tables et de lignes, **le temps de photo** (AMB-002, objectif < 60 s) et ouvrez le `profil.html` produit.
 

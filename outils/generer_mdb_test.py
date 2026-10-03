@@ -23,18 +23,21 @@ MOTEUR_JET3 = 4
 FOURNISSEUR = "Microsoft.Jet.OLEDB.4.0"
 AD_OPEN_KEYSET, AD_LOCK_OPTIMISTIC, AD_CMD_TABLE = 1, 3, 2
 
+# La clé primaire est nommée « PrimaryKey » explicitement (nom que donne l'interface d'Access) : le
+# traceur lit la clé primaire via l'index de ce nom (le pilote ODBC Jet n'a pas SQLPrimaryKeys).
 # Tous les identifiants sont entre crochets : Jet a beaucoup de mots réservés (NOTE, par exemple,
 # est un synonyme du type MEMO) et refuse « NOTE MEMO » avec « Erreur de syntaxe dans la
 # définition de champ ».
 TABLES: dict[str, str] = {
-    "CLIENTS": "CREATE TABLE [CLIENTS] ([ID] LONG PRIMARY KEY, [NOM] TEXT(50), [CODE] TEXT(10), "
-               "[SOLDE] CURRENCY, [CREE] DATETIME)",
-    "FACTURES": "CREATE TABLE [FACTURES] ([NUM] LONG PRIMARY KEY, [CLIENT_ID] LONG, [MONTANT] CURRENCY, "
-                "[DATE_F] DATETIME, [STATUT] TEXT(1), [COMMENTAIRE] MEMO)",
+    "CLIENTS": "CREATE TABLE [CLIENTS] ([ID] LONG, [NOM] TEXT(50), [CODE] TEXT(10), "
+               "[SOLDE] CURRENCY, [CREE] DATETIME, CONSTRAINT [PrimaryKey] PRIMARY KEY ([ID]))",
+    "FACTURES": "CREATE TABLE [FACTURES] ([NUM] LONG, [CLIENT_ID] LONG, [MONTANT] CURRENCY, "
+                "[DATE_F] DATETIME, [STATUT] TEXT(1), [COMMENTAIRE] MEMO, "
+                "CONSTRAINT [PrimaryKey] PRIMARY KEY ([NUM]))",
     "LIGNES": "CREATE TABLE [LIGNES] ([NUM_FACT] LONG, [RANG] INTEGER, [REF] TEXT(10), [QTE] LONG, "
               "[DEBIT] CURRENCY, [CREDIT] CURRENCY)",
     "COMPTEURS": "CREATE TABLE [COMPTEURS] ([CODE_JOURNAL] TEXT(3), [DERNIER_NUM] LONG)",
-    "SESSIONS": "CREATE TABLE [SESSIONS] ([ID] LONG PRIMARY KEY, [DERNIER_ACCES] DATETIME)",
+    "SESSIONS": "CREATE TABLE [SESSIONS] ([ID] LONG, [DERNIER_ACCES] DATETIME, CONSTRAINT [PrimaryKey] PRIMARY KEY ([ID]))",
 }
 COLONNES: dict[str, tuple[str, ...]] = {
     "CLIENTS": ("ID", "NOM", "CODE", "SOLDE", "CREE"),

@@ -49,11 +49,11 @@ class FauxCurseur:
             raise Error("('IM001', '[IM001] SQLStatistics non pris en charge')")
         lignes: list[Statistique] = [Statistique(None, 0, None, None)]  # ligne d'effectif de table
         infos = self._c.sqlite.execute(f'PRAGMA table_info("{table}")').fetchall()
-        lignes += [Statistique("PrimaryKey", i[5], i[1], 0) for i in infos if i[5] > 0]
+        lignes += [Statistique(self._c.nom_index_pk, i[5], i[1], 0) for i in infos if i[5] > 0]
         for _, nom, unique_, *_ in self._c.sqlite.execute(f'PRAGMA index_list("{table}")').fetchall():
-            if unique_ and not nom.startswith("sqlite_autoindex"):
+            if not nom.startswith("sqlite_autoindex") and (unique_ or not unique):
                 colonnes = self._c.sqlite.execute(f'PRAGMA index_info("{nom}")').fetchall()
-                lignes += [Statistique(nom, c[0] + 1, c[2], 0) for c in colonnes]
+                lignes += [Statistique(nom, c[0] + 1, c[2], 0 if unique_ else 1) for c in colonnes]
         return lignes
 
     def execute(self, sql: str, *parametres: Any) -> FauxCurseur:
@@ -87,6 +87,7 @@ class FausseConnexion:
         self.encodage: str | None = None
         self.fermee = False
         self.pk_supportee = True
+        self.nom_index_pk = "PrimaryKey"
         self.statistiques_supportees = True
         self.appels_primary_keys = 0
 
@@ -118,7 +119,8 @@ class FauxPyodbc:
 
     def __init__(self, sqlite_conn: sqlite3.Connection, pilotes: list[str] | None = None,
                  erreur_connexion: str | None = None, pk_supportee: bool = True,
-                 statistiques_supportees: bool = True) -> None:
+                 statistiques_supportees: bool = True, nom_index_pk: str = "PrimaryKey") -> None:
+        self._nom_index_pk = nom_index_pk
         self._pk_supportee = pk_supportee
         self._statistiques_supportees = statistiques_supportees
         self._sqlite = sqlite_conn
@@ -134,6 +136,7 @@ class FauxPyodbc:
             raise Error(self._erreur.replace("{chaine}", chaine))
         connexion = FausseConnexion(self._sqlite, chaine, readonly, autocommit)
         connexion.pk_supportee = self._pk_supportee
+        connexion.nom_index_pk = self._nom_index_pk
         connexion.statistiques_supportees = self._statistiques_supportees
         self.connexions.append(connexion)
         return connexion

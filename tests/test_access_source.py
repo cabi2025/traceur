@@ -271,3 +271,28 @@ def test_profil_et_diff_avec_pilote_sans_sqlprimarykeys(
     base.execute("INSERT INTO FACTURES VALUES (3, 'c', 2)")
     (t,) = comparer_instantanes(avant, prendre_instantane(source)).changements
     assert t.type_cle == "primaire" and [i.cle for i in t.inserts] == [{"NUM": 3}]
+
+
+def test_index_pk_au_nom_inattendu_diagnostic_dans_le_journal_et_cle_vide(
+    base: sqlite3.Connection, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Si Jet nomme l'index autrement que « PrimaryKey », le journal dit quels index existent."""
+    base.execute("CREATE TABLE FACTURES (NUM INTEGER PRIMARY KEY, CODE TEXT, X INTEGER)")
+    base.execute("CREATE INDEX idx_x ON FACTURES (X)")
+    source = SourceAccess(ParametresAccess(r"C:\t.mdb"),
+                          FauxPyodbc(base, pk_supportee=False, nom_index_pk="PK__FACTURES__1"))
+    caplog.set_level(logging.INFO, "traceur")
+    assert source.schema("FACTURES").cle_primaire == ()
+    assert source.schema("FACTURES").cle_primaire == ()  # lecture mise en cache : un seul message
+    assert caplog.text.count("aucun index « PrimaryKey »") == 1
+    assert "PK__FACTURES__1 (unique) → NUM" in caplog.text and "idx_x → X" in caplog.text
+
+
+def test_cles_relues_apres_rafraichissement(
+    source_jet: tuple[SourceAccess, FauxPyodbc], base: sqlite3.Connection
+) -> None:
+    source, faux = source_jet
+    assert source.schema("SANS_CLE").cle_primaire == ()
+    source.rafraichir()  # nouvelle connexion : le cache des clés est vidé
+    assert len(faux.connexions) == 2 and source._cles_lues == {}
+    assert source.schema("FACTURES").cle_primaire == ("NUM",)

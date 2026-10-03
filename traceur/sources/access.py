@@ -150,6 +150,7 @@ class SourceAccess:
         self._secrets = parametres.secrets()
         self._pk_par_statistiques = False
         self._pk_illisible_signalee = False
+        self._cles_lues: dict[str, tuple[str, ...]] = {}
         self._connexion = self._connecter()
 
     def _connecter(self) -> Any:
@@ -198,6 +199,12 @@ class SourceAccess:
         on lit alors les index uniques (SQLStatistics) et on retient l'index « PrimaryKey », nom que
         donne Access à la clé primaire (AMB-028). Sans clé lisible, le profilage fournit des clés
         candidates (SPEC §6.3)."""
+        if table in self._cles_lues:
+            return self._cles_lues[table]
+        self._cles_lues[table] = cle_lue = self._lire_cle_primaire(curseur, table)
+        return cle_lue
+
+    def _lire_cle_primaire(self, curseur: Any, table: str) -> tuple[str, ...]:
         if not self._pk_par_statistiques:
             try:
                 cles = sorted(curseur.primaryKeys(table=table), key=lambda k: k.key_seq)
@@ -211,8 +218,8 @@ class SourceAccess:
                              "uniques (index « %s »).", NOM_INDEX_CLE_PRIMAIRE)
         try:
             index = [
-                (ligne.index_name, ligne.ordinal_position, ligne.column_name)
-                for ligne in curseur.statistics(table=table, unique=True)
+                (ligne.index_name, ligne.ordinal_position, ligne.column_name, ligne.non_unique)
+                for ligne in curseur.statistics(table=table, unique=False)
                 if ligne.index_name and ligne.column_name
             ]
         except self._pyodbc.Error as erreur:
@@ -221,11 +228,13 @@ class SourceAccess:
                 journal.warning("Clés primaires illisibles (SQLStatistics non pris en charge : %s) : "
                                 "les clés candidates du profilage seront utilisées.", erreur)
             return ()
-        cle = sorted((o, c) for nom, o, c in index if nom.casefold() == NOM_INDEX_CLE_PRIMAIRE.casefold())
+        cle = sorted((o, c) for nom, o, c, _ in index if nom.casefold() == NOM_INDEX_CLE_PRIMAIRE.casefold())
         if not cle:
-            autres = sorted({nom for nom, _, _ in index})
-            journal.debug("Table %s : aucun index « %s » (index uniques : %s).", table,
-                          NOM_INDEX_CLE_PRIMAIRE, ", ".join(autres) or "aucun")
+            vus: dict[str, list[str]] = {}
+            for nom, _, colonne, non_unique in sorted(index, key=lambda i: (i[0], i[1])):
+                vus.setdefault(f"{nom}{'' if non_unique else ' (unique)'}", []).append(colonne)
+            journal.info("Table %s : aucun index « %s » ; index vus : %s.", table, NOM_INDEX_CLE_PRIMAIRE,
+                         "; ".join(f"{n} → {', '.join(c)}" for n, c in vus.items()) or "aucun")
         return tuple(c for _, c in cle)
 
     def lire_lignes(self, table: str) -> Iterator[tuple[Any, ...]]:
@@ -248,6 +257,7 @@ class SourceAccess:
     def rafraichir(self) -> None:
         """Rouvre la connexion : à faire avant chaque photo (cache de pages du moteur Jet, AMB-027)."""
         self._connexion.close()
+        self._cles_lues.clear()
         self._connexion = self._connecter()
 
     def fermer(self) -> None:

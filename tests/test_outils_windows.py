@@ -208,6 +208,7 @@ def test_tous_les_identifiants_du_ddl_sont_entre_crochets() -> None:
 
     for table, ddl in gen.TABLES.items():
         corps = ddl[ddl.index("(") + 1 : ddl.rindex(")")]
+        corps = re.sub(r",\s*CONSTRAINT \[PrimaryKey\] PRIMARY KEY \(\[[^\]]+\]\)", "", corps)
         colonnes = re.findall(r"\[([^\]]+)\]\s+[A-Z]+", corps)
         assert tuple(colonnes) == gen.COLONNES[table], table
         assert ddl.startswith(f"CREATE TABLE [{table}] (")
@@ -233,3 +234,10 @@ def test_echec_du_ddl_nomme_la_table_et_l_instruction(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match=r"(?s)table FACTURES.*syntaxe.*CREATE TABLE \[FACTURES\]"):
         gen.creer_base(tmp_path / "s.mdb", 5, dispatch=dispatch_cassee, progression=lambda t: None)
+
+
+def test_cles_primaires_nommees_primarykey() -> None:
+    avec_cle = {t for t, ddl in gen.TABLES.items() if "PRIMARY KEY" in ddl}
+    assert avec_cle == {"CLIENTS", "FACTURES", "SESSIONS"}
+    for table in avec_cle:
+        assert "CONSTRAINT [PrimaryKey] PRIMARY KEY (" in gen.TABLES[table]
