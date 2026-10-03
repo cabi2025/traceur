@@ -123,7 +123,7 @@
 - **Contexte :** la SPEC ne traite que le changement de schéma d'une table existante.
 - **Options :** 1. Signaler dans `schema_modifie` (nature `table_ajoutee` / `table_supprimee`), sans diff de lignes. 2. Traiter comme insert/delete de toutes les lignes.
 - **Recommandation :** 1.
-- **Décision utilisateur :** Table ajoutée → toutes ses lignes en `inserts` ; table supprimée → toutes ses lignes en `deletes` ; signalement conservé dans `schema_modifie`. (Pour une table sans clé, les lignes vont dans `lignes_ajoutees` / `lignes_supprimees`, équivalents sans clé.)
+- **Décision utilisateur :** Lecture validée : une table ajoutée → `inserts` (clé) ou `lignes_ajoutees` (sans clé) ; une table supprimée → `deletes` ou `lignes_supprimees`.
 - **Date de clôture :** 2026-10-03
 
 ### AMB-012 — Diff de lignes d'une table dont le schéma a changé
@@ -149,46 +149,46 @@
 ## Ambiguïtés détectées en J2 (2026-10-03)
 
 ### AMB-014 — Choix de la clé candidate utilisée par le diff quand il y en a plusieurs
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J2 / §6.3
 - **Contexte :** une table sans clé primaire peut avoir plusieurs colonnes ou couples uniques et non nuls ; la SPEC dit « on utilise une clé candidate » sans critère.
 - **Options :** 1. Le moins de colonnes, puis premier dans l'ordre des colonnes. 2. Validation par l'utilisateur (hors périmètre V1).
 - **Recommandation :** 1.
-- **Code concerné :** `TODO(AMB-014)` dans `traceur/moteur/profilage.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Sont exclues des clés candidates les colonnes montant/décimal, flottant, date/date-heure et mémo/binaire. Ordre de préférence : entier, puis texte court ; puis le moins de colonnes ; puis l'ordre des colonnes. La clé retenue reste visible dans `cle_utilisee`. (Interprétations de l'implémentation : « texte court » = au plus 255 caractères observés, au-delà traité comme mémo ; booléen non exclu, classé après le texte ; le type d'un couple est celui de sa colonne la moins préférée.)
+- **Date de clôture :** 2026-10-03
 
 ### AMB-015 — Clés candidates sur les tables très petites
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J2 / §6.4
 - **Contexte :** une table de 0 ou 1 ligne rend toutes ses colonnes « uniques et non nulles » : les clés (et relations) déduites n'ont aucun sens.
 - **Options :** 1. Aucune clé candidate sous 2 lignes. 2. Seuil plus élevé (à fixer). 3. Appliquer la règle telle quelle.
 - **Recommandation :** 1 (seuil minimal ; à relever si les profils réels montrent du bruit).
-- **Code concerné :** `TODO(AMB-015)` dans `traceur/moteur/profilage.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Comportement provisoire validé (aucune clé candidate sous 2 lignes).
+- **Date de clôture :** 2026-10-03
 
 ### AMB-016 — Fausses relations sur colonnes à peu de valeurs distinctes
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J2 / §6.4
 - **Contexte :** la règle (≥ 99 % d'inclusion, types compatibles) accepte une colonne `0/1` ou un code à 3 valeurs incluse dans une clé numérique 1..N. Ces relations sont fausses mais conformes à la SPEC.
 - **Options :** 1. Appliquer la règle telle quelle (l'analyste filtre). 2. Seuil minimal de valeurs distinctes pour la colonne source. 3. Exiger un nom de colonne proche.
 - **Recommandation :** 1 en V1 (« aucune heuristique hors SPEC »), à réévaluer sur la vraie base.
-- **Code concerné :** aucun (comportement SPEC strict).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Relations dont la colonne source est booléenne ou a moins de 3 valeurs distinctes non nulles : conservées avec `confiance: faible`, listées dans le dictionnaire, non dessinées dans le graphe.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-017 — Taux d'inclusion : par lignes ou par valeurs distinctes
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J2 / §6.4
 - **Contexte :** « valeurs non nulles incluses à au moins 99 % » : sur les lignes (une valeur fréquente pèse plus) ou sur les valeurs distinctes ?
 - **Options :** 1. Sur les lignes non nulles. 2. Sur les valeurs distinctes.
 - **Recommandation :** 1 (une clé étrangère orpheline fréquente est un vrai défaut d'intégrité).
-- **Code concerné :** `TODO(AMB-017)` dans `traceur/moteur/profilage.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Critère de rétention maintenu sur les lignes non nulles ; le taux sur valeurs distinctes est ajouté au profil à titre informatif.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-018 — Format de `bruit.json` et rôle de `tables_ignorees`
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J2 / §4, §6.5, §8
 - **Contexte :** `bruit.json` n'a pas d'exemple dans `docs/formats/`. Par ailleurs `tables_ignorees` est « ajoutée à la calibration » (§4) alors que §6.2 ne photographie que les tables « non ignorées » : ignorées de la photo, ou rapportées comme bruit ?
 - **Options :** 1. `tables_ignorees` exclues des photos (jamais rapportées) ; `bruit.json` les liste séparément ; les tables de bruit validées restent photographiées et sont rapportées dans `bruit`. 2. `tables_ignorees` fusionnées dans `tables_bruit` (photographiées, rapportées dans `bruit`).
 - **Recommandation :** 1. Format proposé : `docs/formats/bruit.example.json`.
-- **Code concerné :** `TODO(AMB-018)` dans `traceur/moteur/calibration.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Comportement et `docs/formats/bruit.example.json` validés.
+- **Date de clôture :** 2026-10-03

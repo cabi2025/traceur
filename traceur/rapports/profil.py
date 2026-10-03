@@ -99,6 +99,8 @@ def generer_html(profil: dict[str, Any]) -> str:
     tables = profil["tables"]
     total = sum(t["nb_lignes"] for t in tables)
     jet = profil["version_jet"] or "non détectée"
+    visibles = [r for r in profil["relations_candidates"] if r["confiance"] != "faible"]
+    nb_faibles = len(profil["relations_candidates"]) - len(visibles)
     p = [
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">',
         "<title>Profil de la base</title>",
@@ -110,17 +112,27 @@ def generer_html(profil: dict[str, Any]) -> str:
         "<p>Une relation est candidate quand au moins 99 % des valeurs non nulles d'une colonne "
         "se retrouvent dans une colonne clé candidate de même type. C'est une hypothèse, "
         "pas une règle.</p>",
-        _svg_relations(profil["relations_candidates"]),
+        _svg_relations(visibles),
     ]
+    if nb_faibles:
+        p.append(
+            f"<p>{nb_faibles} relation(s) à confiance faible (colonne source booléenne ou à "
+            "moins de 3 valeurs distinctes) ne sont pas dessinées ; elles figurent dans le "
+            "tableau ci-dessous.</p>"
+        )
     if profil["relations_candidates"]:
-        p.append("<table><tr><th>Colonne source</th><th>Colonne cible</th>"
-                 "<th>Inclusion</th><th>Valeurs</th></tr>")
+        p.append("<table><tr><th>Colonne source</th><th>Colonne cible</th><th>Confiance</th>"
+                 "<th>Inclusion (lignes)</th><th>Lignes</th>"
+                 "<th>Inclusion (valeurs distinctes)</th><th>Valeurs distinctes</th></tr>")
         for r in profil["relations_candidates"]:
             p.append(
                 f"<tr><td>{escape(r['table_source'])}.{escape(r['colonne_source'])}</td>"
                 f"<td>{escape(r['table_cible'])}.{escape(r['colonne_cible'])}</td>"
+                f"<td>{escape(r['confiance'])}</td>"
                 f'<td class="n">{_pct(r["taux_inclusion"])}</td>'
-                f'<td class="n">{r["nb_incluses"]} / {r["nb_valeurs"]}</td></tr>'
+                f'<td class="n">{r["nb_incluses"]} / {r["nb_valeurs"]}</td>'
+                f'<td class="n">{_pct(r["taux_inclusion_distincts"])}</td>'
+                f'<td class="n">{r["nb_distincts_inclus"]} / {r["nb_distincts_source"]}</td></tr>'
             )
         p.append("</table>")
     p.append("<h2>Dictionnaire des tables</h2>")

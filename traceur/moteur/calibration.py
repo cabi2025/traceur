@@ -20,7 +20,7 @@ class Calibration:
     fin: datetime
     intervalle_s: float
     proposees: dict[str, str] = field(default_factory=dict)  # table -> résumé
-    tables_ignorees: list[str] = field(default_factory=list)  # TODO(AMB-018)
+    tables_ignorees: list[str] = field(default_factory=list)
     tables_bruit: list[str] = field(default_factory=list)  # validées par l'utilisateur
 
     def valider(self, tables: Collection[str]) -> None:
@@ -54,7 +54,7 @@ def calibrer(
     """Deux photos espacées de `intervalle_s` secondes, sans action. Propose les tables qui changent.
 
     Par défaut toutes les tables proposées sont retenues ; l'utilisateur ajuste avec `valider`.
-    Les `tables_ignorees` (configuration) sont exclues des photos (AMB-018, provisoire).
+    Les `tables_ignorees` (configuration) sont exclues des photos (AMB-018).
     """
     debut = maintenant()
     avant = prendre_instantane(source, tables_ignorees)

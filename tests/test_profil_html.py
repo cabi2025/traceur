@@ -66,3 +66,15 @@ def test_profil_json_sans_flottant(base: sqlite3.Connection) -> None:
     d = profiler(SourceSqlite(base)).vers_dict()
     assert d["tables"][0]["colonnes"][0]["min"] == "1.1"
     assert not any(isinstance(v, float) for v in json.loads(json.dumps(d)).values())
+
+
+def test_relations_faibles_listees_mais_non_dessinees(base: sqlite3.Connection) -> None:
+    base.execute("CREATE TABLE CLIENTS (ID INTEGER PRIMARY KEY)")
+    base.executemany("INSERT INTO CLIENTS VALUES (?)", [(i,) for i in range(1, 21)])
+    base.execute("CREATE TABLE DEUX (FLAG INTEGER)")
+    base.executemany("INSERT INTO DEUX VALUES (?)", [(1,), (2,), (1,)])
+    html = generer_html(profiler(SourceSqlite(base)).vers_dict())
+    assert "DEUX.FLAG" in html and "faible" in html  # dans le tableau
+    assert "<svg" not in html  # aucune relation à dessiner
+    assert "1 relation(s) à confiance faible" in html
+    assert "Aucune relation candidate" in html

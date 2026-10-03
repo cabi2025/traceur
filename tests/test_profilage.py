@@ -57,14 +57,37 @@ def test_statistiques_par_colonne(compta: sqlite3.Connection) -> None:
 
 def test_cles_candidates(compta: sqlite3.Connection) -> None:
     profil = profiler(SourceSqlite(compta))
-    cles_f = set(profil.table("FACTURES").cles_candidates)
-    assert {("NUM",), ("NUM_TEXTE",), ("MONTANT",)} <= cles_f
-    assert ("NOTE",) not in cles_f  # colonne avec des nuls
-    assert ("CLIENT_ID",) not in cles_f  # doublons
+    # entier avant texte court ; MONTANT (décimal) et DATE_F exclus ; NOTE a des nuls
+    assert profil.table("FACTURES").cles_candidates == (("NUM",), ("NUM_TEXTE",))
     # LIGNES : aucune colonne seule, mais le couple (NUM_FACT, RANG) est unique
     assert profil.table("LIGNES").cles_candidates == (("NUM_FACT", "RANG"),)
-    # pas de couple non minimal (contenant déjà une clé simple)
-    assert all(len(c) == 1 or not set(c) & {x[0] for x in cles_f if len(x) == 1} for c in cles_f)
+
+
+def test_colonnes_exclues_des_cles_candidates(base: sqlite3.Connection) -> None:
+    base.execute(
+        "CREATE TABLE T (TXT TEXT, MONTANT DECIMAL(10,2), FLOT REAL, D DATE, DT DATETIME, "
+        "NOTE MEMO, BIN BLOB, LONG TEXT, ENT INTEGER, MIXTE)"
+    )
+    for i in range(5):
+        base.execute(
+            "INSERT INTO T VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (f"t{i}", f"{i}.50", i + 0.5, f"2025-01-0{i + 1}", f"2025-01-01T0{i}:00:00",
+             f"memo{i}", bytes([i]), "x" * 300 + str(i), i, i if i % 2 else f"s{i}"),
+        )
+    # seuls l'entier puis le texte court restent, quel que soit l'ordre des colonnes
+    assert profiler(SourceSqlite(base)).table("T").cles_candidates == (("ENT",), ("TXT",))
+
+
+def test_ordre_de_preference_des_cles(base: sqlite3.Connection) -> None:
+    base.execute("CREATE TABLE T (T1 TEXT, A INTEGER, B INTEGER, C INTEGER)")
+    base.executemany("INSERT INTO T VALUES (?,?,?,?)",
+                     [("u1", 1, 1, 5), ("u2", 1, 2, 5), ("u3", 2, 1, 5), ("u4", 2, 2, 5)])
+    cles = profiler(SourceSqlite(base)).table("T").cles_candidates
+    # type d'abord (le couple d'entiers précède le texte), puis moins de colonnes, puis ordre
+    assert cles == (("A", "B"), ("T1",))
+    base.execute("CREATE TABLE U (X INTEGER, Y INTEGER, Z TEXT)")
+    base.executemany("INSERT INTO U VALUES (?,?,?)", [(1, 1, "a"), (2, 2, "b")])
+    assert profiler(SourceSqlite(base)).table("U").cles_candidates == (("X",), ("Y",), ("Z",))
 
 
 def test_relations_candidates_vraies_et_fausses(compta: sqlite3.Connection) -> None:
@@ -76,6 +99,7 @@ def test_relations_candidates_vraies_et_fausses(compta: sqlite3.Connection) -> N
     }
     rel = next(r for r in profil.relations if r.table_source == "LIGNES")
     assert rel.taux_inclusion == Decimal("1.0000") and rel.nb_valeurs == rel.nb_incluses == 400
+    assert {r.confiance for r in profil.relations} == {"normale"}
     # NUM_TEXTE (texte) n'est pas rattaché à NUM (numérique) : types incompatibles
     assert ("FACTURES", "NUM_TEXTE", "FACTURES", "NUM") not in _relations(profil)
 
@@ -95,10 +119,10 @@ def test_seuil_de_99_pour_cent(base: sqlite3.Connection) -> None:
 
 
 def test_valeurs_numeriques_comparables_entre_types(base: sqlite3.Connection) -> None:
-    base.execute("CREATE TABLE K (ID DECIMAL(5,1) PRIMARY KEY)")
-    base.executemany("INSERT INTO K VALUES (?)", [("10.0",), ("20.0",)])
-    base.execute("CREATE TABLE R (K_ID INTEGER)")
-    base.executemany("INSERT INTO R VALUES (?)", [(10,), (20,), (10,)])
+    base.execute("CREATE TABLE K (ID INTEGER PRIMARY KEY)")
+    base.executemany("INSERT INTO K VALUES (?)", [(10,), (20,), (30,)])
+    base.execute("CREATE TABLE R (K_ID DECIMAL(5,1))")
+    base.executemany("INSERT INTO R VALUES (?)", [("10.0",), ("20.0",), ("30.0",)])
     assert ("R", "K_ID", "K", "ID") in _relations(profiler(SourceSqlite(base)))
 
 
@@ -151,3 +175,30 @@ def test_cle_candidate_preferee_la_plus_courte(base: sqlite3.Connection) -> None
     base.execute("CREATE TABLE T (A INTEGER, B INTEGER, C INTEGER)")
     base.executemany("INSERT INTO T VALUES (?,?,?)", [(1, 7, 1), (2, 7, 1), (3, 8, 2)])
     assert cles_candidates_du_profil(profiler(SourceSqlite(base))) == {"T": ("A",)}
+
+
+def test_relation_a_faible_confiance_conservee(base: sqlite3.Connection) -> None:
+    base.execute("CREATE TABLE CLIENTS (ID INTEGER PRIMARY KEY)")
+    base.executemany("INSERT INTO CLIENTS VALUES (?)", [(i,) for i in range(1, 21)])
+    base.execute("CREATE TABLE DEUX (V INTEGER)")  # 2 valeurs distinctes : faible
+    base.executemany("INSERT INTO DEUX VALUES (?)", [(1,), (2,), (1,), (2,)])
+    base.execute("CREATE TABLE TROIS (V INTEGER)")  # 3 valeurs distinctes : normale
+    base.executemany("INSERT INTO TROIS VALUES (?)", [(1,), (2,), (3,), (1,)])
+    rel = {r.table_source: r for r in profiler(SourceSqlite(base)).relations}
+    assert rel["DEUX"].confiance == "faible" and rel["TROIS"].confiance == "normale"
+    assert rel["DEUX"].nb_distincts_source == 2
+
+
+def test_taux_sur_valeurs_distinctes_informatif(base: sqlite3.Connection) -> None:
+    base.execute("CREATE TABLE P (ID INTEGER PRIMARY KEY)")
+    base.executemany("INSERT INTO P VALUES (?)", [(i,) for i in range(1, 11)])
+    base.execute("CREATE TABLE Q (P_ID INTEGER)")
+    # 1000 lignes valides sur une seule valeur + 2 orphelins distincts :
+    # lignes : 1000/1002 (retenue) ; valeurs distinctes : 1/3 (information)
+    base.executemany("INSERT INTO Q VALUES (?)", [(1,)] * 1000 + [(9001,), (9002,)])
+    (rel,) = profiler(SourceSqlite(base)).relations
+    assert rel.taux_inclusion == Decimal("0.9980")
+    assert rel.taux_inclusion_distincts == Decimal("0.3333")
+    assert (rel.nb_distincts_inclus, rel.nb_distincts_source) == (1, 3)
+    d = profiler(SourceSqlite(base)).vers_dict()["relations_candidates"][0]
+    assert d["taux_inclusion_distincts"] == "0.3333" and d["confiance"] == "normale"

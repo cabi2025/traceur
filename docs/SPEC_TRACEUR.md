@@ -116,7 +116,7 @@ Optimisation autorisée : si deux tables ont la même empreinte et le même nomb
 ### 6.3 Diff (F5)
 Pour chaque table dont l'empreinte a changé (une table à empreinte, nombre de lignes et schéma identiques est ignorée) :
 - **avec clé primaire déclarée :** appariement par clé. On obtient `insert`, `delete`, et `update` avec, pour chaque champ, `avant` → `apres`.
-- **sans clé primaire :** on cherche une **clé candidate** issue du profilage (colonne ou couple de colonnes uniques et non nulles) et on l'utilise.
+- **sans clé primaire :** on cherche une **clé candidate** issue du profilage (colonne ou couple de colonnes uniques et non nulles) et on l'utilise. S'il y en a plusieurs, on retient la première selon l'ordre de préférence du §6.4. La clé retenue figure dans `cle_utilisee` de la trace.
   - À défaut, on compare des **multiensembles d'empreintes de lignes**. On obtient `lignes_ajoutees` et `lignes_supprimees`.
   - Une paire ajoutée/supprimée qui diffère d'au plus 2 champs est proposée comme **`update_probable`**.
   - L'appariement est glouton et déterministe : pour chaque ligne ajoutée, on retient la ligne supprimée libre qui diffère du plus petit nombre de champs (premier dans l'ordre en cas d'égalité). Les lignes appariées sortent de `lignes_ajoutees` / `lignes_supprimees`. Au-delà de 1 000 000 de comparaisons (ajoutées × supprimées), aucun appariement n'est tenté et un avertissement explicite est produit (table, nombre de lignes non appariées).
@@ -129,8 +129,13 @@ Pour chaque table dont l'empreinte a changé (une table à empreinte, nombre de 
 Pour chaque table : nombre de lignes, colonnes, types déclarés et types observés, % de nuls, nombre de valeurs distinctes, min/max.
 
 Le profilage détecte :
-- les **clés candidates** : colonnes ou couples uniques et non nuls ;
-- les **relations candidates** : colonne A dont les valeurs non nulles sont incluses à au moins 99 % dans une colonne clé candidate B, avec des types compatibles ; chaque relation reçoit un taux d'inclusion.
+- les **clés candidates** : colonnes ou couples uniques et non nuls.
+  - Sont **exclues** : les colonnes montant/décimal, flottant, date/date-heure, mémo/binaire (et le texte de plus de 255 caractères, traité comme un mémo).
+  - **Ordre de préférence** : type (entier, puis texte court), puis le moins de colonnes, puis l'ordre des colonnes dans la table. Un couple a le type de sa colonne la moins préférée.
+  - Une table de moins de 2 lignes n'a aucune clé candidate ;
+- les **relations candidates** : colonne A dont les valeurs non nulles sont incluses à au moins 99 % dans une colonne clé candidate B, avec des types compatibles.
+  - Le critère de rétention est calculé **sur les lignes non nulles**. Le profil indique aussi, à titre informatif, le taux sur les valeurs distinctes.
+  - Une relation dont la colonne source est booléenne ou a moins de 3 valeurs distinctes non nulles est conservée avec `confiance: faible` (sinon `normale`). Elle est listée dans le dictionnaire mais **non dessinée** dans le graphe.
 
 Sortie : `profil.json` et `profil.html` (dictionnaire des tables + graphe des relations rendu en SVG ou en Mermaid embarqué, **sans dépendance réseau**).
 
@@ -139,7 +144,7 @@ Le traceur prend 2 photos espacées de N secondes (défaut 30) **sans aucune act
 
 Pendant un diff, les tables de bruit sont rapportées à part (`bruit`), pas mêlées aux changements.
 
-Sortie : `bruit.json` (format provisoire : `docs/formats/bruit.example.json`, voir AMB-018) avec les tables proposées (et leur résumé), les tables de bruit validées et les `tables_ignorees` de la configuration.
+Sortie : `bruit.json` (format : `docs/formats/bruit.example.json`) avec les tables proposées (et leur résumé), les tables de bruit validées et les `tables_ignorees` de la configuration. Les `tables_ignorees` sont exclues des photos ; les tables de bruit validées restent photographiées et sont rapportées à part (`bruit`).
 
 ## 7. Interprétation
 

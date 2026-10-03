@@ -15,7 +15,16 @@ from .normalisation import valeur_json
 from .source import SourceDonnees
 
 SEUIL_INCLUSION = Decimal("0.99")
-NB_LIGNES_MIN_CLE = 2  # TODO(AMB-015) : seuil minimal provisoire
+NB_LIGNES_MIN_CLE = 2  # AMB-015 : pas de clé candidate sous 2 lignes
+NB_DISTINCTS_MIN_RELATION = 3  # AMB-016 : en dessous, confiance « faible »
+LONGUEUR_MAX_TEXTE_COURT = 255  # texte Access (au-delà : comportement « mémo »)
+_TYPES_DECLARES_EXCLUS = (
+    "DECIMAL", "NUMERIC", "CURRENCY", "MONEY",  # montants
+    "FLOAT", "DOUBLE", "REAL", "SINGLE",  # flottants
+    "DATE", "TIME",  # dates et date-heure
+    "MEMO", "LONGTEXT", "LONGCHAR", "CLOB",  # mémo
+    "BLOB", "BINARY", "LONGBINARY", "OLE", "IMAGE",  # binaire
+)
 _DEUX_DECIMALES = Decimal("0.01")
 _QUATRE_DECIMALES = Decimal("0.0001")
 
@@ -80,9 +89,13 @@ class RelationCandidate:
     colonne_source: str
     table_cible: str
     colonne_cible: str
-    taux_inclusion: Decimal
+    taux_inclusion: Decimal  # sur les lignes non nulles : critère de rétention (AMB-017)
     nb_valeurs: int
     nb_incluses: int
+    taux_inclusion_distincts: Decimal  # informatif (AMB-017)
+    nb_distincts_source: int
+    nb_distincts_inclus: int
+    confiance: str  # "normale" | "faible" (AMB-016)
 
 
 @dataclass
@@ -132,6 +145,10 @@ class Profil:
                     "taux_inclusion": format(r.taux_inclusion, "f"),
                     "nb_valeurs": r.nb_valeurs,
                     "nb_incluses": r.nb_incluses,
+                    "taux_inclusion_distincts": format(r.taux_inclusion_distincts, "f"),
+                    "nb_distincts_source": r.nb_distincts_source,
+                    "nb_distincts_inclus": r.nb_distincts_inclus,
+                    "confiance": r.confiance,
                 }
                 for r in self.relations
             ],
@@ -147,6 +164,7 @@ class _Accumulateur:
         self.nb_nuls = 0
         self.familles: set[str] = set()
         self.types: set[str] = set()
+        self.longueur_max_texte = 0
         self.ordre_valide = True
         self.minimum: tuple[Hashable, Any] | None = None
         self.maximum: tuple[Hashable, Any] | None = None
@@ -161,6 +179,8 @@ class _Accumulateur:
         self.compteur[cle] += 1
         self.familles.add(famille(valeur))
         self.types.add(type(valeur).__name__)
+        if isinstance(valeur, str):
+            self.longueur_max_texte = max(self.longueur_max_texte, len(valeur))
         if not self.ordre_valide:
             return
         try:
@@ -216,29 +236,68 @@ def _profiler_table(
                 maximum,
             )
         )
+    types_declares = {c.nom: c.type_declare for c in schema.colonnes}
     table = TableProfil(
-        nom, nb_lignes, schema.cle_primaire, tuple(colonnes), _cles_candidates(noms, acc, nb_lignes)
+        nom,
+        nb_lignes,
+        schema.cle_primaire,
+        tuple(colonnes),
+        _cles_candidates(noms, types_declares, acc, nb_lignes),
     )
     return table, acc
 
 
+def _rang_type_cle(type_declare: str, acc: _Accumulateur) -> int | None:
+    """Rang de préférence d'une colonne comme clé (AMB-014) ; None si elle est exclue.
+
+    Exclus : montant/décimal, flottant, date/date-heure, mémo/binaire.
+    Préférence : entier (0), puis texte court (1), puis booléen (2).
+    """
+    if type_declare.upper().startswith(_TYPES_DECLARES_EXCLUS):
+        return None
+    if len(acc.familles) != 1:
+        return None
+    (fam,) = acc.familles
+    if fam == "numerique":
+        return 0 if acc.types == {"int"} else None
+    if fam == "texte":
+        return 1 if acc.longueur_max_texte <= LONGUEUR_MAX_TEXTE_COURT else None
+    if fam == "booleen":
+        return 2
+    return None
+
+
 def _cles_candidates(
-    noms: tuple[str, ...], acc: Mapping[str, _Accumulateur], nb_lignes: int
+    noms: tuple[str, ...],
+    types_declares: Mapping[str, str],
+    acc: Mapping[str, _Accumulateur],
+    nb_lignes: int,
 ) -> tuple[tuple[str, ...], ...]:
-    """Colonnes puis couples uniques et non nuls (SPEC §6.4)."""
-    if nb_lignes < NB_LIGNES_MIN_CLE:  # TODO(AMB-015)
+    """Colonnes puis couples uniques et non nuls (SPEC §6.4), triés par ordre de préférence.
+
+    Ordre (AMB-014) : type (entier, puis texte court), puis moins de colonnes, puis ordre des
+    colonnes dans la table. Le type d'un couple est celui de sa colonne la moins préférée.
+    """
+    if nb_lignes < NB_LIGNES_MIN_CLE:
         return ()
-    sans_nul = [n for n in noms if acc[n].nb_nuls == 0]
-    simples = [n for n in sans_nul if len(acc[n].compteur) == nb_lignes]
+    rang = {n: _rang_type_cle(types_declares[n], acc[n]) for n in noms}
+    eligibles = [n for n in noms if rang[n] is not None and acc[n].nb_nuls == 0]
+    simples = [n for n in eligibles if len(acc[n].compteur) == nb_lignes]
     cles: list[tuple[str, ...]] = [(n,) for n in simples]
-    restantes = [n for n in sans_nul if n not in simples]
+    restantes = [n for n in eligibles if n not in simples]
     for a, b in combinations(restantes, 2):
         # Un couple ne peut être unique que si le produit des distincts atteint nb_lignes.
         if len(acc[a].compteur) * len(acc[b].compteur) < nb_lignes:
             continue
         if len(set(zip(acc[a].cles, acc[b].cles))) == nb_lignes:
             cles.append((a, b))
-    return tuple(cles)
+
+    def preference(cle: tuple[str, ...]) -> tuple[int, int, tuple[int, ...]]:
+        rangs = [rang[c] for c in cle]
+        pire = max(r for r in rangs if r is not None)
+        return pire, len(cle), tuple(noms.index(c) for c in cle)
+
+    return tuple(sorted(cles, key=preference))
 
 
 def _relations(
@@ -260,10 +319,12 @@ def _relations(
             for table_b, colonne_b, b in cibles:
                 if (table_b, colonne_b) == (t.nom, colonne.nom) or a.familles != b.familles:
                     continue
-                # TODO(AMB-017) : taux calculé sur les lignes non nulles (provisoire).
+                # AMB-017 : rétention sur les lignes non nulles ; taux sur distincts = information.
                 incluses = sum(n for cle, n in a.compteur.items() if cle in b.compteur)
                 taux = Decimal(incluses) / Decimal(a.nb_valeurs)
                 if taux >= SEUIL_INCLUSION:
+                    distincts_inclus = sum(1 for cle in a.compteur if cle in b.compteur)
+                    faible = "booleen" in a.familles or len(a.compteur) < NB_DISTINCTS_MIN_RELATION
                     relations.append(
                         RelationCandidate(
                             t.nom,
@@ -273,6 +334,12 @@ def _relations(
                             taux.quantize(_QUATRE_DECIMALES),
                             a.nb_valeurs,
                             incluses,
+                            (Decimal(distincts_inclus) / len(a.compteur)).quantize(
+                                _QUATRE_DECIMALES
+                            ),
+                            len(a.compteur),
+                            distincts_inclus,
+                            "faible" if faible else "normale",
                         )
                     )
     return relations
@@ -304,11 +371,10 @@ def profiler(
 def cles_candidates_du_profil(profil: Profil) -> dict[str, tuple[str, ...]]:
     """Clé candidate par table sans clé primaire, pour `comparer_instantanes` (SPEC §6.3).
 
-    TODO(AMB-014) : parmi plusieurs candidates, le moins de colonnes puis la première
-    dans l'ordre des colonnes (provisoire).
+    `cles_candidates` est déjà trié par préférence (AMB-014) : on retient la première.
     """
     return {
-        t.nom: min(t.cles_candidates, key=len)
+        t.nom: t.cles_candidates[0]
         for t in profil.tables
         if not t.cle_primaire and t.cles_candidates
     }
