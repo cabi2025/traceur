@@ -277,7 +277,8 @@
 - **Jalon / SPEC :** J4 / §3, §4 (`delai_stabilisation_s`), §5.2
 - **Contexte :** le moteur Jet met en cache les pages lues et ne les rafraîchit qu'après un délai (`PageTimeout`, 5 s par défaut). Une connexion ouverte avant l'action du comptable peut donc renvoyer, à la photo « après », des données périmées, même après `delai_stabilisation_s`. Non vérifiable ici (Linux) : à mesurer sur Windows (`tests/test_integration_access.py::test_cache_jet_connexion_longue`).
 - **Options :** 1. Rouvrir la connexion avant chaque photo (`SourceAccess.rafraichir()`), sans toucher au délai. 2. Garder une connexion unique et exiger un délai ≥ `PageTimeout`.
-- **Recommandation :** 1 (coût négligeable, indépendant du réglage du poste).
+- **Mesure (Windows 32 bits, 2026-10-03) :** `connexion longue : avant=200, immédiat=200, après 6 s=201 ; connexion rouverte=201`. Une connexion ouverte **ne voit pas** une écriture tierce juste après (immédiat=200) et ne la voit qu'après le délai de cache (≈ 5 s). Une connexion rouverte voit l'écriture immédiatement : le test de diff, qui rouvre la connexion juste après le script tiers, passe.
+- **Recommandation :** 1 (coût négligeable, indépendant du réglage du poste). La mesure confirme le risque et l'efficacité de la réouverture ; `delai_stabilisation_s` (3 s par défaut) seul ne suffirait pas sur une connexion longue.
 - **Code concerné :** `traceur/sources/access.py` (`rafraichir()`, provisoirement option 1).
 - **Décision utilisateur :**
 
