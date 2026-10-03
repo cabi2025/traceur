@@ -8,6 +8,14 @@ import pytest
 from traceur.sources.sqlite import SourceSqlite
 
 
+@pytest.fixture(autouse=True)
+def dns_hermetique(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Aucun test ne fait de vraie requête DNS : un nom de serveur se résout en lui-même."""
+    import traceur.securite as securite
+
+    monkeypatch.setattr(securite, "resoudre_hote_dns", lambda hote, delai_s=3.0: frozenset({hote.casefold()}))
+
+
 @pytest.fixture
 def base() -> Iterator[sqlite3.Connection]:
     connexion = sqlite3.connect(":memory:")

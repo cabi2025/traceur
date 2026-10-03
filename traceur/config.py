@@ -11,9 +11,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-CLES_OBLIGATOIRES = (
-    "base_test", "instantane_reference", "chemins_interdits", "fichier_fiches", "dossier_sorties",
-)  # AMB-023 : toutes exigées au démarrage (provisoire)
+CLES_OBLIGATOIRES = ("base_test", "instantane_reference", "chemins_interdits", "dossier_sorties")
+# AMB-023 : `fichier_fiches` est optionnel ; `instantane_reference` reste obligatoire.
+MESSAGE_FICHES_INDISPONIBLES = (
+    "Aucun fichier de fiches n'est configuré (paramètre « fichier_fiches » de config.json) : "
+    "seuls le profilage et la calibration sont disponibles."
+)
 
 
 class ErreurConfiguration(Exception):
@@ -25,8 +28,8 @@ class Configuration:
     base_test: str
     instantane_reference: str
     chemins_interdits: tuple[str, ...]
-    fichier_fiches: str
     dossier_sorties: str
+    fichier_fiches: str | None = None
     mot_de_passe: str | None = field(default=None, repr=False)
     fichier_mdw: str | None = None
     utilisateur: str | None = None
@@ -34,6 +37,11 @@ class Configuration:
     tables_ignorees: tuple[str, ...] = ()
     encodage_texte: str = "cp1252"
     delai_stabilisation_s: float = 3
+
+    @property
+    def fiches_disponibles(self) -> bool:
+        """Sans fichier de fiches, les boutons de fiche sont désactivés (message ci-dessus)."""
+        return self.fichier_fiches is not None
 
     def secrets(self) -> list[str]:
         """Valeurs à masquer dans tout journal ou rapport."""
@@ -80,8 +88,8 @@ def configuration_depuis_dict(donnees: dict[str, Any]) -> Configuration:
         base_test=_texte(donnees, "base_test", True) or "",
         instantane_reference=_texte(donnees, "instantane_reference", True) or "",
         chemins_interdits=_liste(donnees, "chemins_interdits", True),
-        fichier_fiches=_texte(donnees, "fichier_fiches", True) or "",
         dossier_sorties=_texte(donnees, "dossier_sorties", True) or "",
+        fichier_fiches=_texte(donnees, "fichier_fiches"),
         mot_de_passe=_texte(donnees, "mot_de_passe"),
         fichier_mdw=_texte(donnees, "fichier_mdw"),
         utilisateur=_texte(donnees, "utilisateur"),
@@ -93,7 +101,9 @@ def configuration_depuis_dict(donnees: dict[str, Any]) -> Configuration:
     if config.mot_de_passe and config.fichier_mdw:  # AMB-026
         raise ErreurConfiguration(
             "Un mot de passe de base (« mot_de_passe ») et un groupe de travail (« fichier_mdw ») "
-            "ne peuvent pas être utilisés ensemble. Gardez l'un des deux."
+            "ne peuvent pas être utilisés ensemble. Gardez l'un des deux.\n"
+            "Conseil : retirez le mot de passe de la copie de TEST (ouvrez la copie dans Access en "
+            "mode exclusif, menu Outils > Sécurité, puis supprimez le mot de passe de la base de données)."
         )
     if config.fichier_mdw and not config.utilisateur:
         raise ErreurConfiguration("Un « fichier_mdw » demande aussi le paramètre « utilisateur ».")

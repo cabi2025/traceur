@@ -76,7 +76,8 @@ def test_chaine_groupe_de_travail() -> None:
 
 
 def test_parametres_depuis_configuration() -> None:
-    c = Configuration("a.mdb", "r.mdb", ("p.mdb",), "f.json", "out", mot_de_passe="pw", encodage_texte="cp1252")
+    c = Configuration("a.mdb", "r.mdb", ("p.mdb",), "out", fichier_fiches="f.json", mot_de_passe="pw",
+                      encodage_texte="cp1252")
     p = ParametresAccess.depuis_configuration(c)
     assert (p.chemin, p.mot_de_passe, p.encodage_texte) == ("a.mdb", "pw", "cp1252")
     assert p.secrets() == ["pw"]

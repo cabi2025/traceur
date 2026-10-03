@@ -16,7 +16,9 @@ import ntpath
 import os
 import re
 import shutil
+import socket
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +29,8 @@ from .config import Configuration
 journal = logging.getLogger("traceur.securite")
 
 ResolveurLecteur = Callable[[str], "str | None"]
+ResolveurHote = Callable[[str], "frozenset[str] | None"]
+DELAI_DNS_S = 3.0
 TAILLE_BLOC = 1024 * 1024
 VERROUS = {".mdb": ".ldb", ".accdb": ".laccdb"}  # AMB-008
 
@@ -81,8 +85,88 @@ def normaliser_chemin(chemin: str, resoudre_lecteur: ResolveurLecteur | None = l
     return ntpath.normpath(texte).casefold().rstrip("\\")
 
 
-def _est_ou_contient(parent: str, enfant: str) -> bool:
-    return enfant == parent or enfant.startswith(parent + "\\")
+def resoudre_hote_dns(hote: str, delai_s: float = DELAI_DNS_S) -> frozenset[str] | None:
+    """Adresses IP d'un nom de serveur (None si la résolution échoue ou dépasse `delai_s`).
+
+    Une adresse IP donnée en toutes lettres se représente elle-même, sans requête DNS.
+    """
+    if _est_adresse_ip(hote):
+        return frozenset({hote.casefold()})
+    return _resoudre_avec_delai(hote, delai_s)
+
+
+def _est_adresse_ip(hote: str) -> bool:
+    return any(_est_litterale(hote, famille) for famille in (socket.AF_INET, socket.AF_INET6))
+
+
+def _est_litterale(hote: str, famille: int) -> bool:
+    try:
+        socket.inet_pton(famille, hote)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _resoudre_avec_delai(hote: str, delai_s: float) -> frozenset[str] | None:
+    resultat: list[frozenset[str]] = []
+
+    def travail() -> None:
+        try:
+            resultat.append(frozenset(str(i[4][0]).casefold() for i in socket.getaddrinfo(hote, None)))
+        except OSError:
+            pass
+
+    fil = threading.Thread(target=travail, daemon=True)
+    fil.start()
+    fil.join(delai_s)
+    return resultat[0] if resultat else None
+
+
+def _decouper_unc(chemin: str) -> tuple[str | None, str]:
+    """`\\\\hote\\reste` → (hote, `\\reste`) ; un chemin local donne (None, chemin)."""
+    if chemin.startswith("\\\\"):
+        hote, _, reste = chemin[2:].partition("\\")
+        return hote, "\\" + reste if reste else ""
+    return None, chemin
+
+
+class _Comparateur:
+    """Compare des chemins normalisés ; les noms de serveur sont résolus en IP (AMB-024)."""
+
+    def __init__(self, resoudre_hote: ResolveurHote) -> None:
+        self._resoudre = resoudre_hote
+        self._cache: dict[str, frozenset[str] | None] = {}
+
+    def _ips(self, hote: str) -> frozenset[str] | None:
+        if _est_adresse_ip(hote):
+            return frozenset({hote})
+        if hote not in self._cache:
+            ips = self._resoudre(hote)
+            self._cache[hote] = ips
+            if ips is None:
+                journal.warning(
+                    "Résolution DNS impossible pour le serveur « %s » : comparaison textuelle des chemins. "
+                    "Listez le nom ET l'adresse IP du serveur dans chemins_interdits.", hote)
+        return self._cache[hote]
+
+    def _memes_serveurs(self, h1: str, h2: str) -> bool:
+        if h1 == h2:
+            return True
+        ips1, ips2 = self._ips(h1), self._ips(h2)
+        return bool(ips1 and ips2 and ips1 & ips2)
+
+    def est_ou_contient(self, parent: str, enfant: str) -> bool:
+        """`enfant` est `parent` ou est situé dedans (composantes entières)."""
+        hote_p, reste_p = _decouper_unc(parent)
+        hote_e, reste_e = _decouper_unc(enfant)
+        if (hote_p is None) != (hote_e is None):
+            return False
+        if hote_p is not None and hote_e is not None and not self._memes_serveurs(hote_p, hote_e):
+            return False
+        return reste_e == reste_p or reste_e.startswith(reste_p + "\\")
+
+    def identiques(self, a: str, b: str) -> bool:
+        return self.est_ou_contient(a, b) and self.est_ou_contient(b, a)
 
 
 def chemin_verrou(base: str) -> str:
@@ -107,15 +191,20 @@ def empreinte_sha256(chemin: str | Path) -> str:
 # --- F1 : contrôles de démarrage ---------------------------------------------------------------
 
 def verifier_demarrage(
-    config: Configuration, resoudre_lecteur: ResolveurLecteur | None = lecteur_vers_unc
+    config: Configuration,
+    resoudre_lecteur: ResolveurLecteur | None = lecteur_vers_unc,
+    resoudre_hote: ResolveurHote | None = None,
 ) -> None:
     """Refuse de démarrer si la base de TEST est une base interdite ou l'instantané de référence.
 
-    AMB-024 (provisoire) : « interdit » = égal à un chemin interdit ou situé dedans.
+    AMB-024 : « interdit » = égal à un chemin interdit ou situé dedans. Les noms de serveur des
+    deux côtés sont résolus en adresses IP avant comparaison ; si la résolution échoue, la
+    comparaison reste textuelle et un avertissement est écrit au journal.
     """
+    comparateur = _Comparateur(resoudre_hote if resoudre_hote is not None else resoudre_hote_dns)
     test = normaliser_chemin(config.base_test, resoudre_lecteur)
     for interdit in config.chemins_interdits:
-        if _est_ou_contient(normaliser_chemin(interdit, resoudre_lecteur), test):
+        if comparateur.est_ou_contient(normaliser_chemin(interdit, resoudre_lecteur), test):
             journal.error("Démarrage refusé : base de TEST interdite (%s).", config.base_test)
             raise ErreurSecurite(
                 "DÉMARRAGE REFUSÉ : la base de TEST indiquée est une base de PRODUCTION.\n"
@@ -123,7 +212,7 @@ def verifier_demarrage(
                 f"  chemin interdit : {interdit}\n"
                 "Corrigez « base_test » dans config.json pour viser la copie de TEST."
             )
-    if test == normaliser_chemin(config.instantane_reference, resoudre_lecteur):
+    if comparateur.identiques(test, normaliser_chemin(config.instantane_reference, resoudre_lecteur)):
         journal.error("Démarrage refusé : base de TEST identique à l'instantané de référence.")
         raise ErreurSecurite(
             "DÉMARRAGE REFUSÉ : la base de TEST est le même fichier que l'instantané de référence.\n"
@@ -173,14 +262,16 @@ def reinitialiser_base_test(
     resoudre_lecteur: ResolveurLecteur | None = lecteur_vers_unc,
     copier: Callable[[str, str], object] = shutil.copyfile,
     horloge: Callable[[], float] = time.perf_counter,
+    resoudre_hote: ResolveurHote | None = None,
 ) -> ResultatReinitialisation:
     """Copie `instantane_reference` vers `base_test` (et nulle part ailleurs), puis vérifie le hash.
 
     Ordre : contrôles F1, instantané présent, logiciel fermé (pas de `.ldb`), confirmation de
     l'utilisateur, nouvelle vérification du verrou, copie, comparaison SHA-256, journal.
-    AMB-025 (provisoire) : copie directe, sans fichier temporaire.
+    AMB-025 : copie directe, sans fichier temporaire ; en cas d'écart de hash, erreur claire et
+    journal, sans nouvelle tentative automatique.
     """
-    verifier_demarrage(config, resoudre_lecteur)
+    verifier_demarrage(config, resoudre_lecteur, resoudre_hote)
     reference, cible = config.instantane_reference, config.base_test
     if not os.path.isfile(reference):
         raise ErreurSecurite(f"RÉINITIALISATION IMPOSSIBLE : instantané de référence introuvable : {reference}")
@@ -206,7 +297,8 @@ def reinitialiser_base_test(
         journal.error("Réinitialisation : empreintes différentes (%s).", cible)
         raise ErreurSecurite(
             "RÉINITIALISATION ÉCHOUÉE : la copie ne correspond pas à l'instantané de référence "
-            "(empreintes différentes).\nLa base de TEST est à considérer comme invalide : "
+            "(empreintes différentes).\nLa base de TEST est à considérer comme invalide. Aucune nouvelle "
+            "tentative n'a été faite automatiquement : vérifiez le disque ou le partage, puis "
             "recommencez la réinitialisation."
         )
     resultat = ResultatReinitialisation(

@@ -39,8 +39,8 @@ Utilisateurs :
 - **Version Jet :** Jet 3 (Access 97) et Jet 4 (Access 2000) sont tous deux supportés. La version est détectée par l'octet 0x14 de l'en-tête (0 = Jet 3, 1 = Jet 4, voir `outils/version_jet.py`) et affichée dans le profil.
 - **Connexion en lecture seule et en accès partagé** pendant que le logiciel legacy tourne : `ReadOnly=1`, mot de passe `PWD` si fourni, fichier de groupe de travail `SystemDB` si `.mdw` fourni. Le fichier ne doit jamais être verrouillé en exclusif.
   - La classe d'accès n'exécute que des `SELECT` et n'expose aucune méthode d'écriture. Le moteur Jet crée et supprime lui-même le fichier de verrou `.ldb` à côté de la base ; le `.mdb` n'est jamais modifié.
-  - Le moteur Jet met en cache les pages lues : la connexion est **rouverte avant chaque photo** (`SourceAccess.rafraichir()`, AMB-027 à confirmer).
-  - Un mot de passe de base (`mot_de_passe`) et un groupe de travail (`fichier_mdw`) ne peuvent pas être utilisés ensemble (le pilote n'a qu'un paramètre `PWD`) : la configuration est refusée (AMB-026 à confirmer).
+  - Le moteur Jet met en cache les pages lues : la connexion est **rouverte avant chaque photo** (`SourceAccess.rafraichir()`). Mesure sur Windows : une connexion ouverte avant l'écriture ne la voit pas tout de suite (avant = 200 lignes, immédiat = 200) et la voit après ≈ 5 s (201) ; une connexion rouverte la voit aussitôt.
+  - Un mot de passe de base (`mot_de_passe`) et un groupe de travail (`fichier_mdw`) ne peuvent pas être utilisés ensemble (le pilote n'a qu'un paramètre `PWD`) : la configuration est refusée, avec le conseil de retirer le mot de passe de la copie de TEST.
 - **Volumétrie :** jusqu'à environ 25 ans d'écritures, donc des tables de plusieurs centaines de milliers de lignes. Une photo complète doit rester **en dessous de 60 s** sur un poste ordinaire. Si ce n'est pas tenable, c'est une ambiguïté à remonter. Le temps de photo est **mesuré et affiché** (par table et au total) dès le moteur ; aucune optimisation n'est faite avant une mesure sur la vraie base (AMB-002).
 - **Encodage :** textes Jet décodés selon `encodage_texte` (défaut `cp1252`).
 - **Interface :** Tkinter, en français, gros boutons, lisible par un non-technicien.
@@ -53,13 +53,13 @@ Voir l'exemple dans `docs/formats/config.example.json`.
 | `base_test` | oui | Chemin du `.mdb` de TEST tracé |
 | `mot_de_passe` | non | Mot de passe base (si non retiré) |
 | `fichier_mdw` | non | Fichier groupe de travail + `utilisateur` / `mot_de_passe_mdw` |
-| `instantane_reference` | oui (F10) | Copie fraîche servant à la réinitialisation |
-| `chemins_interdits` | oui | Chemins de production. Le démarrage est refusé si `base_test` y figure, ou est situé dans un dossier interdit (comparaison sur chemins normalisés : casse, `/` ou `\`, `.`/`..`, préfixe `\\?\`, UNC, lecteur réseau résolu en UNC par Windows). Limite : un nom de serveur et son adresse IP ne sont pas reconnus comme identiques (AMB-024 à confirmer) |
-| `fichier_fiches` | oui (F8) | Fichier JSON des fiches de scénarios |
+| `instantane_reference` | oui | Copie fraîche servant à la réinitialisation |
+| `chemins_interdits` | oui | Chemins de production. Le démarrage est refusé si `base_test` y figure, ou est situé dans un dossier interdit (comparaison sur chemins normalisés : casse, `/` ou `\`, `.`/`..`, préfixe `\\?\`, UNC, lecteur réseau résolu en UNC par Windows). Les noms de serveur des deux côtés sont résolus en adresses IP (DNS) avant comparaison ; si la résolution échoue, la comparaison reste textuelle et un avertissement est écrit au journal. Conseil : lister le nom ET l'adresse IP du serveur de production |
+| `fichier_fiches` | non | Fichier JSON des fiches de scénarios. Absent : seuls le profilage et la calibration sont disponibles, les boutons de fiche sont désactivés avec un message |
 | `dossier_sorties` | oui | Dossier de dépôt (local ou partage réseau) |
 | `tables_ignorees` | non | Liste manuelle, ajoutée à la calibration (F3) |
 | `encodage_texte` | non | Défaut `cp1252` |
-| `delai_stabilisation_s` | non | Défaut 3. Attente après « Fin » avant la photo, pour laisser le legacy terminer ses écritures |
+| `delai_stabilisation_s` | non | Défaut 3. Attente après « Fin » avant la photo, pour laisser le logiciel legacy terminer ses propres écritures. Il ne sert pas au cache du pilote (voir §3) |
 
 ## 5. Interface — écrans
 
@@ -237,7 +237,7 @@ Voir `docs/formats/fiches.example.json`. Une fiche contient :
 ## 10. Réinitialisation (F10)
 - Elle exige une confirmation explicite, avec un texte qui rappelle la base visée.
 - Elle vérifie qu'aucun fichier de verrou actif n'existe à côté de la base de TEST (`.ldb` pour un `.mdb`, `.laccdb` pour un `.accdb`), c'est-à-dire que le logiciel legacy est fermé. Sinon elle refuse, avec un message.
-- Elle copie `instantane_reference` vers `base_test` après les contrôles F1 (copie directe, sans fichier temporaire : AMB-025 à confirmer), puis compare le SHA-256 du résultat à celui de l'instantané ; un écart est une erreur et la base de TEST est à considérer comme invalide. La connexion du traceur doit être fermée avant (Jet pose un `.ldb` tant qu'elle est ouverte) ; le verrou est contrôlé avant et après la confirmation.
+- Elle copie `instantane_reference` vers `base_test` après les contrôles F1 (copie directe, sans fichier temporaire), puis compare le SHA-256 du résultat à celui de l'instantané ; un écart est une erreur journalisée, sans nouvelle tentative automatique, et la base de TEST est à considérer comme invalide. La connexion du traceur doit être fermée avant (Jet pose un `.ldb` tant qu'elle est ouverte) ; le verrou est contrôlé avant et après la confirmation.
 - Elle journalise l'opération dans `journal.log` (local, voir §8).
 
 ## 11. Critères de qualité

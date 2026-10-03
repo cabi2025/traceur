@@ -111,6 +111,7 @@
 ## J7 — Livraison
 - [ ] Build PyInstaller `--onefile` **32 bits** : `traceur.exe`
 - [ ] `GUIDE_COMPTABLE.md` (1 page, langage simple) + `GUIDE_INSTALLATION.md` (config, chemins, partage)
+- [ ] Fiche de validation « S-000 » dans le guide (AMB-027) : une saisie simple ; photo après 3 s puis après 10 s ; si les deux diffs diffèrent, augmenter `delai_stabilisation_s`
 - [ ] Test de l'`.exe` sur un poste Windows sans Python
 - [ ] Bilan : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
 

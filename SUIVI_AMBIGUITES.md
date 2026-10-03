@@ -237,50 +237,50 @@
 ## Ambiguïtés détectées en J4 (2026-10-03)
 
 ### AMB-023 — Clés de configuration « oui (F10) » / « oui (F8) »
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J4 / §4
 - **Contexte :** `instantane_reference` est « oui (F10) » et `fichier_fiches` « oui (F8) » : obligatoires toujours, ou seulement quand la fonction est utilisée ?
 - **Options :** 1. Toujours exigées au démarrage (l'outil offre toutes les fonctions). 2. Exigées à l'usage seulement.
 - **Recommandation :** 1 (le contrôle `base_test ≠ instantane_reference` n'a de sens que si les deux sont connues).
-- **Code concerné :** `traceur/config.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** `fichier_fiches` optionnel ; absent → seuls profilage et calibration sont disponibles, boutons de fiche désactivés avec un message. `instantane_reference` reste obligatoire.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-024 — « Le chemin de TEST figure dans `chemins_interdits` » : égalité ou inclusion ; limites de la normalisation
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J4 / §4, CLAUDE.md (sécurité)
 - **Contexte :** (a) « figure » = égal, ou aussi situé dans un dossier interdit ? (b) la normalisation (casse, `/` ou `\`, `..`, préfixe `\\?\`, UNC, lecteur réseau résolu en UNC par Windows) ne peut pas reconnaître qu'un nom de serveur et son adresse IP, ou deux alias DNS, désignent le même fichier.
 - **Options :** (a) 1. Égal ou contenu dans un chemin interdit (composantes entières) ; 2. égal seulement. (b) 1. Limite documentée dans le guide ; 2. résolution DNS/IP (hors périmètre).
 - **Recommandation :** (a) 1, par prudence ; (b) 1.
-- **Code concerné :** `traceur/securite.py` (provisoirement a1 + b1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Dossiers contenus validés. Résolution DNS des noms de serveur (des deux côtés) avant comparaison ; si elle échoue, comparaison textuelle + avertissement au journal. Conseil dans `LISEZMOI_J4.md` : lister nom ET IP dans `chemins_interdits`.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-025 — Réinitialisation : copie directe ou via un fichier temporaire
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J4 / §10
 - **Contexte :** la règle de sécurité n'autorise la copie que « vers le chemin de la base de TEST, et uniquement vers ce chemin ». Un fichier temporaire suivi d'un remplacement atomique protégerait d'une copie interrompue, mais écrirait un autre fichier dans le dossier de TEST.
 - **Options :** 1. Copie directe vers `base_test`, puis vérification du hash SHA-256 ; en cas d'écart, erreur claire et base à considérer comme invalide jusqu'à une nouvelle réinitialisation réussie. 2. Fichier temporaire + remplacement atomique.
 - **Recommandation :** 1 (respecte la lettre de la règle ; la base de TEST est jetable).
-- **Code concerné :** `traceur/securite.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Copie directe validée ; en cas d'écart de hash : message clair, journal, pas de nouvelle tentative automatique.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-026 — Mot de passe de base et groupe de travail (.mdw) simultanés
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J4 / §3, §4
 - **Contexte :** la SPEC prévoit `PWD` (mot de passe de base) et `SystemDB` + utilisateur + mot de passe du groupe de travail. Le pilote ODBC Access n'a qu'un paramètre `PWD` : avec `SystemDB`, c'est le mot de passe de l'utilisateur. Les deux protections sont en principe alternatives dans Jet.
 - **Options :** 1. Refuser la combinaison au démarrage avec un message clair. 2. Priorité au groupe de travail et ignorer `mot_de_passe`.
 - **Recommandation :** 1 (rien n'est ignoré en silence ; à lever si la vraie base combine les deux).
-- **Code concerné :** `traceur/config.py` (provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Validé ; le message de refus conseille de retirer le mot de passe de la copie de TEST.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-027 — Cache du pilote Jet sur une connexion longue
-- **Statut :** OUVERTE
+- **Statut :** CLOSE
 - **Jalon / SPEC :** J4 / §3, §4 (`delai_stabilisation_s`), §5.2
 - **Contexte :** le moteur Jet met en cache les pages lues et ne les rafraîchit qu'après un délai (`PageTimeout`, 5 s par défaut). Une connexion ouverte avant l'action du comptable peut donc renvoyer, à la photo « après », des données périmées, même après `delai_stabilisation_s`. Non vérifiable ici (Linux) : à mesurer sur Windows (`tests/test_integration_access.py::test_cache_jet_connexion_longue`).
 - **Options :** 1. Rouvrir la connexion avant chaque photo (`SourceAccess.rafraichir()`), sans toucher au délai. 2. Garder une connexion unique et exiger un délai ≥ `PageTimeout`.
 - **Mesure (Windows 32 bits, 2026-10-03) :** `connexion longue : avant=200, immédiat=200, après 6 s=201 ; connexion rouverte=201`. Une connexion ouverte **ne voit pas** une écriture tierce juste après (immédiat=200) et ne la voit qu'après le délai de cache (≈ 5 s). Une connexion rouverte voit l'écriture immédiatement : le test de diff, qui rouvre la connexion juste après le script tiers, passe.
 - **Recommandation :** 1 (coût négligeable, indépendant du réglage du poste). La mesure confirme le risque et l'efficacité de la réouverture ; `delai_stabilisation_s` (3 s par défaut) seul ne suffirait pas sur une connexion longue.
-- **Code concerné :** `traceur/sources/access.py` (`rafraichir()`, provisoirement option 1).
-- **Décision utilisateur :**
+- **Décision utilisateur :** Option 1 — `rafraichir()` avant chaque photo, mesure consignée dans la SPEC. `delai_stabilisation_s` conservé à 3 s pour couvrir le délai d'écriture du logiciel legacy lui-même. Ajouter au futur guide (J7) une fiche de validation « S-000 » : une saisie simple, photo après 3 s puis après 10 s ; si les deux diffs diffèrent, augmenter le délai.
+- **Date de clôture :** 2026-10-03
 
 ### AMB-028 — Clé primaire déclarée avec le pilote Jet
 - **Statut :** OUVERTE

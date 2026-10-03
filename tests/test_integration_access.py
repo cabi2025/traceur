@@ -254,7 +254,7 @@ def test_base_protegee_et_mot_de_passe_absent_du_journal(base_protegee: str, tmp
 # --- sécurité de démarrage et réinitialisation -----------------------------------------------
 
 def _config(base_test: str, reference: str, interdits: list[str]) -> Configuration:
-    return Configuration(base_test, reference, tuple(interdits), "fiches.json", "sorties")
+    return Configuration(base_test, reference, tuple(interdits), "sorties", fichier_fiches="fiches.json")
 
 
 def test_demarrage_refuse_la_base_de_production(base_synthetique: str, tmp_path: Path) -> None:
