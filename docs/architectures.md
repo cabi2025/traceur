@@ -8,12 +8,14 @@
 
 | Élément | État actuel |
 |---|---|
-| Logiciel | Exécutable autonome (`.exe`) datant de 2000, code source inaccessible |
+| Logiciel | **Compta PLus** Ver. 2019.01 (GENIE LOG SARL, Meknès) : exécutable autonome, noyau de 2000, retouches mineures jusqu'en 2019, code source inaccessible. Carte des écrans : `docs/CARTE_ECRANS.md` |
 | Base de données | Fichiers Access `.mdb`, partagés sur le réseau, mots de passe connus. **Structure : un catalogue `.mdb` + des dossiers `.mdb`** (voir ci-dessous) |
 | Domaine | Comptabilité marocaine (CGNC / PCGE) |
 | Problème | Migration repoussée depuis des années ; évolutions fiscales compensées par des applis externes |
 
 **Structure des données (confirmée le 2026-10-04).** Le logiciel ouvre un **catalogue** `.mdb`, situé dans le même dossier que les dossiers, qu'il trouve automatiquement ; le catalogue liste les **sociétés et exercices**. Chaque **dossier** `.mdb` = une société + un exercice. Conséquence pour le traçage : le traceur observe un dossier (`base_test`) ; les écritures éventuelles dans le catalogue ne sont pas tracées (AMB-038, ouverte, reportée). **Périmètre de la phase 1 des sessions :** une seule société et un seul exercice, dans un dossier TEST copié d'un exercice réel récent et encore ouvert (non clôturé), déclaré dans le catalogue sous le nom « ZZ-TEST TRACEUR ».
+
+**Gestion commerciale (GC).** La GC est du **même éditeur** et tourne sur **SQL Server** (`192.168.16.99`, authentification Windows). Elle alimente la comptabilité par un **pont** (menu E-2.07.x, paramétré par l'écran E-7.08) : le transfert écrit dans les deux bases (Journal + Pièce dans la table `Ecrit` de la GC ; écritures `Externe = 1` dans la comptabilité). Faits déclarés, à confirmer par trace : `docs/CARTE_ECRANS.md` §8. Le traçage de la GC relève de AMB-038 (traçage multi-bases).
 
 **Objectif :** reconstruire un logiciel équivalent et **fiable**, puis y intégrer les fonctionnalités des applis externes.
 
@@ -113,7 +115,7 @@ Détecter tout ce qu'une action du logiciel modifie dans la base.
 - Les sessions durent environ 15 minutes, pour 3 à 4 fiches.
 
 ### Format d'une fiche
-Code, titre, durée, prérequis, étapes numérotées avec référence de capture, valeurs exactes, et ce qu'il faut noter.
+Code, titre, durée, prérequis, étapes numérotées avec référence de capture, valeurs exactes, et ce qu'il faut noter. **`docs/CARTE_ECRANS.md` est la référence** pour le champ `capture_ref` (codes `E-x.yy.zz`) et pour tout libellé d'écran ; les fiches sont numérotées `S-<lot><nn>` (par exemple S-201). Les priorités des premières fiches sont au §7 de ce document.
 
 ### Conventions de traçabilité
 - **Montants uniques** (ex. 1 234,56) pour retrouver chaque ligne instantanément.
@@ -128,6 +130,9 @@ Code, titre, durée, prérequis, étapes numérotées avec référence de captur
 | 3 | Traitements : lettrage, délettrage, clôture mensuelle. **Couvert en phase 1** |
 | 4 | États : balance, grand livre, déclaration TVA, exportés si possible. **Couvert en phase 1** |
 | 5 | Clôture annuelle et à-nouveaux, sur copie fraîche, en dernier. **Reporté** : conditionné au traçage du catalogue (AMB-038) |
+| Pont GC | Comptabilisation des factures et règlements de la gestion commerciale (E-2.07.x). **Conditionné à AMB-038** (traçage multi-bases : base GC SQL Server `GC_TEST`) ; fiches **interdites** avant (voir `CLAUDE.md`, règles de sécurité) |
+
+**Hors périmètre (décisions du 2026-10-04) :** imports Excel E-7.12, E-7.13, E-7.14 et E-7.16 (jamais utilisés) ; blocs génériques du paramétrage E-7.08 (minoterie, briqueterie, gaz, hôtel, clinique), seul le bloc « GC principale » est utilisé. **Ventes : TVA à 20 % uniquement** ; les achats peuvent porter d'autres taux. **En attente du questionnaire du comptable** (menus utilisés) : abonnements, immobilisations, ancienne saisie, transferts, contrôle de la comptabilité.
 
 **Phase 1 des sessions :** lots **1a, 2, 3 et 4**, sur un seul exercice ouvert. Les lots **1b et 5** (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice) ne sont étudiés qu'une fois le catalogue tracé (AMB-038). Réserve : si la date de modification de `catalogue.mdb` change pendant S-000 ou une fiche du lot 1a, le lot 1a passe lui aussi en reporté.
 
@@ -190,6 +195,10 @@ Une règle sans preuve reste au statut *hypothèse* et n'est pas codée comme d�
 Reprise complète depuis le `.mdb` grâce au dictionnaire des tables, puis contrôle par comparaison des balances avant et après migration.
 
 **Multi-société / multi-exercice :** la migration est **pilotée par le catalogue**. Le catalogue donne la liste des sociétés et exercices, donc des dossiers `.mdb` à reprendre, et leurs liens (un dossier = une société + un exercice). Le dictionnaire des tables du catalogue est à établir avant la migration (dépend de AMB-038 pour les lots 1b et 5 : création de société ou d'exercice, ouverture du nouvel exercice).
+
+**Migration = comptabilité (`.mdb`) + liaison avec la GC.** Au-delà du contenu des dossiers, la migration reprend le lien entre les écritures de la comptabilité et les factures de la GC : le couple **(Journal, Pièce)**, stocké côté GC dans la table `Ecrit`, et l'indicateur **`Externe`** côté comptabilité (`Externe = 1` : écriture créée par transfert ; `Externe = 0` présumé : saisie manuelle). Le nouveau logiciel doit reproduire le **verrou** de la facture transférée (modification et suppression refusées) et la traçabilité de l'origine des écritures. La part des écritures venues du pont se **mesure** par comptage de `Externe` sur la copie du dossier (`docs/CARTE_ECRANS.md` §8). Ces mécanismes sont déclarés, **à confirmer par trace**.
+
+**Référentiel TVA : reconstruit, pas recopié.** Le référentiel de TVA du nouveau logiciel est établi **selon la réglementation en vigueur**. La codification TVA de la GC est **incohérente** (code 05 « TVA 10 % » avec taux 0 ; codes 02 et 03 sans compte de vente, le 03 sans aucun compte ; un seul compte de TVA collectée, 4455, quel que soit le taux) : cela **n'est pas à corriger dans l'existant**, c'est à **signaler et à traiter dans la migration** (règle de qualité de données ; usage réel des codes à compter dans `EcritL` par `CodeTVA`). Détail : `docs/CARTE_ECRANS.md` §8.
 
 ---
 

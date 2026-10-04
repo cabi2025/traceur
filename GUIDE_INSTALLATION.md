@@ -40,7 +40,7 @@ fiches\lot1.json     ← vos fiches (voir docs\formats\fiches.example.json)
    - **Cas A (préféré) : sous-dossier séparé** (par exemple `…\Compta\TEST\`), si le logiciel accepte de déclarer un dossier situé ailleurs que dans le dossier de production. Dans `config.json`, `chemins_interdits` garde alors le **dossier de production entier** (par exemple `\\SERVEUR\Compta\`) : tout ce qu'il contient est interdit, et le dossier TEST, situé à part, ne l'est pas. Ajoutez aussi l'adresse IP du serveur (voir section 3).
    - **Cas B : même dossier que la production**, si le logiciel ne sait pas déclarer un dossier situé ailleurs. Le dossier TEST est alors dans un dossier de production : `chemins_interdits` ne peut plus contenir ce dossier (le Traceur refuserait de démarrer), il doit lister **un par un** le **catalogue** et **chaque dossier réel** (exercice de production). **Rappel : ajouter tout nouveau dossier de production à `chemins_interdits`** (nouvelle société, nouvel exercice, copie, restauration), sans quoi il ne serait pas protégé. Le fichier TEST (`base_test`) ne doit **jamais** figurer dans la liste.
    - Notez le cas retenu (A ou B) et la liste de `chemins_interdits` correspondante.
-3. **Vérifier que l'exercice accepte une saisie** : ouvrez ZZ-TEST TRACEUR et faites une saisie d'essai ; puis **supprimez cette saisie d'essai, avant l'étape 4**. **Notez ce que le logiciel affiche à l'ouverture : c'est le repère** que verra le comptable (`GUIDE_COMPTABLE.md`, « Avant de commencer »).
+3. **Vérifier que l'exercice accepte une saisie** : ouvrez ZZ-TEST TRACEUR et faites une saisie d'essai ; puis **supprimez cette saisie d'essai, avant l'étape 4**. **Notez ce que le logiciel affiche à l'ouverture, en particulier dans la barre de titre** (`*** <SOCIÉTÉ> Exercice <AAAA> Utilisateur <PROFIL> ***`, voir `docs/CARTE_ECRANS.md` §1) : c'est le repère que verra le comptable (`GUIDE_COMPTABLE.md`, « Avant de commencer »).
    - Si le logiciel affiche **« ZZ-TEST TRACEUR »** : le repère est ce nom.
    - Si le logiciel affiche le **nom de la société réelle** (contenu dans le dossier copié) : **renommez la société dans le dossier TEST**, avec les paramètres société du logiciel, par exemple en « ZZ-TEST TRACEUR ». Faites-le **avant l'instantané de référence** (étape 4), sinon la réinitialisation recopie l'instantané et efface le nouveau nom. Rouvrez et vérifiez que le nouveau nom s'affiche.
    - Si ce renommage est **impossible** : le repère est le nom choisi dans la liste des sociétés à l'ouverture (**ZZ-TEST TRACEUR**) ; dites-le au comptable (étape 1 de son guide).
@@ -52,6 +52,22 @@ fiches\lot1.json     ← vos fiches (voir docs\formats\fiches.example.json)
 - **Données réelles.** Le dossier TEST est une copie de données réelles : les rapports, les captures d'écran et `profil.html` contiennent de vrais montants, comptes et noms de tiers. Traitez le dossier de sorties comme confidentiel.
 - **`chemins_interdits`** doit contenir le chemin de l'exercice de **production** et celui du catalogue de production (cas A : le dossier de production entier ; cas B : les fichiers un par un).
 - Le comptable choisit **ZZ-TEST TRACEUR** dans la liste des sociétés du logiciel, jamais sa société habituelle.
+
+## 2 ter. Pont avec la gestion commerciale (GC) : fiches E-2.07.x **interdites** pour l'instant
+La gestion commerciale (GC), du même éditeur, est une base **SQL Server** (`192.168.16.99`). Le pont (menu E-2.07.x) **écrit dans les deux bases** : dans la GC (Journal et Pièce de la facture) et dans la comptabilité. Le Traceur V1 ne voit que le dossier comptable. **Les fiches E-2.07.x sont donc interdites** tant que (1) la base `GC_TEST` n'existe pas et que (2) le traçage multi-bases n'est pas livré (AMB-038, ouverte, non codée).
+
+**Règles de sécurité :**
+- **Le paramétrage du pont (écran E-7.08) ne se modifie jamais dans la comptabilité de production.** Dans le dossier TEST, E-7.08 pointe au départ vers la GC de **production** : un transfert lancé depuis le dossier TEST lirait la vraie GC et pourrait y écrire.
+- **Le serveur SQL `192.168.16.99` n'est jamais redémarré.** Le Traceur n'y accédera qu'à `GC_TEST`, en **lecture seule** (rôle `db_datareader`, authentification Windows). Les bases GC de production sont **interdites**, comme `chemins_interdits` l'est pour les `.mdb`.
+- **Les captures de E-7.08 masquent le champ mot de passe.** Attention : le Traceur prend des captures de tous les écrans à Début et à Fin ; **ne laissez pas E-7.08 ouvert** à ces moments (AMB-039).
+
+**Préparation TEST du pont, dans cet ordre :**
+1. **Copier la base GC 2026 en `GC_TEST`** (sauvegarde/restauration SQL Server, faite par l'administrateur de la base ; jamais d'action sur la base de production autre qu'une sauvegarde).
+2. **Copier le dossier compta** : c'est le dossier TEST préparé à la section 2 bis.
+3. **Dans le dossier TEST uniquement**, régler E-7.08 (bloc « GC principale ») sur **`GC_TEST`** / **2026**. **Vérifiez la barre de titre avant de valider** : elle doit afficher le dossier TEST (`*** ZZ-TEST TRACEUR Exercice AAAA Utilisateur … ***`), pas la société de production.
+4. **Prendre les instantanés de référence** : le **dossier TEST** (à **reprendre après l'étape 3**, car le réglage de E-7.08 fait désormais partie de l'état de référence) **et une sauvegarde de `GC_TEST`**.
+
+*Hors périmètre* (inutilisés, décisions du 2026-10-04) : les autres blocs de E-7.08 (minoterie, briqueterie, gaz, hôtel, clinique) et les imports Excel E-7.12, E-7.13, E-7.14, E-7.16.
 
 ## 3. `config.json`
 | Clé | Obligatoire | Rôle |

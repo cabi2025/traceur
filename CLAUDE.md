@@ -16,6 +16,7 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 | `JALONS.md` | Jalons à franchir dans l'ordre, avec critères d'acceptation |
 | `SUIVI_AMBIGUITES.md` | Registre des ambiguïtés |
 | `docs/formats/` | Formats d'entrée et de sortie (exemples de référence) |
+| `docs/CARTE_ECRANS.md` | Carte des écrans du logiciel « Compta PLus » (codes E-x.yy.zz, risques, priorisation des fiches, pont gestion commerciale). Référence pour `capture_ref` et tout libellé d'écran |
 
 ## Protocole de travail (strict)
 1. **Les jalons se font dans l'ordre.** Un jalon est terminé quand **tous** ses critères d'acceptation passent. Arrête-toi alors, fais un compte rendu et attends **GO** avant le jalon suivant.
@@ -35,6 +36,13 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 - Aucune donnée réelle n'est versionnée dans le dépôt. `.gitignore` exclut `*.mdb`, `*.ldb`, `*.mdw`, `sorties/` et `config.json`.
 - Les mots de passe ne sont **jamais** journalisés ni écrits dans les rapports.
 
+### Pont gestion commerciale (GC, SQL Server) — règles posées le 2026-10-04 (rien n'est codé)
+- Le paramétrage du pont (écran **E-7.08**) ne se modifie **jamais** dans la comptabilité de production.
+- Préparation TEST, **dans cet ordre** : (1) copier la base GC 2026 en `GC_TEST` ; (2) copier le dossier compta ; (3) **dans le dossier TEST uniquement**, régler E-7.08 sur `GC_TEST` / 2026, en **vérifiant la barre de titre avant de valider** ; (4) prendre les instantanés de référence (dossier TEST et sauvegarde de `GC_TEST`).
+- Les fiches **E-2.07.x** sont **interdites** tant que `GC_TEST` n'existe pas et que le traçage multi-bases (AMB-038) n'est pas livré.
+- Serveur SQL `192.168.16.99` : **jamais de redémarrage**. L'accès du traceur est limité à `GC_TEST`, en **lecture seule** (`db_datareader`, authentification Windows). Les bases GC de production sont **interdites** (équivalent SQL Server de `chemins_interdits`).
+- Les **captures de E-7.08 masquent le champ mot de passe**.
+
 ## Stack (décidée — voir SPEC §3)
 - Python 3.11+ **32 bits**, `pyodbc`, Tkinter, Pillow, PyInstaller (un seul `.exe`).
 - Tests : `pytest`. Le moteur de diff est testé **sans** Access, via une source de données abstraite (voir SPEC §6.1).
@@ -42,5 +50,6 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 ## Conventions
 - Code, noms de variables et commentaires en **français** pour le domaine (`fiche`, `instantane`, `ecart`). Les termes techniques standard restent en anglais.
 - Typage (`mypy --strict` sur `traceur/moteur/`).
+- Les codes d'écran (`E-x.yy.zz`) de `docs/CARTE_ECRANS.md` servent de `capture_ref` et de libellés d'écran dans les fiches, traces et rapports.
 - Tous les fichiers produits sont en **UTF-8**. Les textes lus depuis le `.mdb` sont décodés selon la page de code configurée (défaut `cp1252`).
 - Les dates sont écrites en ISO 8601 et les montants comme des chaînes décimales exactes, jamais comme des flottants.
