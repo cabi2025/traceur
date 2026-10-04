@@ -22,7 +22,7 @@ Date : 2026-10-04. Périmètre : jalons J0 à J7 (SPEC `docs/SPEC_TRACEUR.md`, f
 ## 3. Ambiguïtés
 **Closes** : AMB-001 et AMB-003 à AMB-036 (décisions recopiées dans `SUIVI_AMBIGUITES.md`).
 **Ouvertes, en attente de la vraie base :**
-- **AMB-002 — durée de photo réelle.** Mesuré : 23,9 s pour 1,2 million de lignes en mémoire (SQLite, moteur seul, sur ce poste de développement). La lecture ODBC d'Access sera plus lente : à mesurer (`diagnostic.py --photo`, `LISEZMOI_J7.md` étapes 7 et 8) ; la mesure finale se fait depuis le poste du comptable, base sur le partage réseau. Aucune optimisation avant cette mesure.
+- **AMB-002 — durée de photo réelle.** Mesuré sous Windows par ODBC Access (Python 32 bits, disque local, base synthétique Jet 4 de 7,8 Mo, lignes de 6 colonnes) : **152 506 lignes en 2,93 s** (LIGNES 100 000 en 1,92 s, FACTURES 50 000 en 0,93 s), soit environ 52 000 lignes/s ; profilage complet 3,9 s. Ce n'est qu'un ordre de grandeur : la vraie base sera sur un partage, avec des tables plus larges. Mesuré aussi, moteur seul : 23,9 s pour 1,2 million de lignes en mémoire (SQLite, moteur seul, sur ce poste de développement). La lecture ODBC d'Access sera plus lente : à mesurer (`diagnostic.py --photo`, `LISEZMOI_J7.md` étapes 7 et 8) ; la mesure finale se fait depuis le poste du comptable, base sur le partage réseau. Aucune optimisation avant cette mesure.
 - **AMB-028 — noms des clés primaires** de la vraie base avec le pilote Jet (`sonder_pilote.py` sur une copie).
 - **AMB-001 — version Jet** de la vraie base : décision prise, `version_jet.py` à lancer sur une copie pour le constater.
 

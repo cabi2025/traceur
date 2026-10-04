@@ -128,5 +128,6 @@
 - [x] Bilan (`BILAN_V1.md`) : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
 
 > 2026-10-04 — **Livré, test Windows en attente (J7 reste ouvert jusqu'à vos essais).** Ajouts : section « Antivirus » du guide d'installation, option `--onedir` de `construire_exe.py` en repli, mesure de photo finale à faire depuis le poste du comptable (partage réseau). Décisions AMB-032 à 035 (recommandations) enregistrées. Construction d'essai sous Linux (64 bits) : l'exécutable démarre, trouve Tkinter/Pillow et écrit `journal.log` à côté de lui. Photo du moteur seul : 23,9 s pour 1,2 million de lignes (SQLite en mémoire) ; la mesure Access reste à faire (AMB-002).
+> 2026-10-04 — Essais Windows avec `traceur.exe` (32 bits, 16 733 Ko) : lancement, profilage, S-SYN-01 (5 tables / 3 ajoutées / 2 modifiées / 1 supprimée, clé CODE_JOURNAL après réinitialisation), refus de démarrer, test partiel « sans Python » (PATH réduit ; pas de poste propre ni de Bac à sable Windows disponible). Photo ODBC Access sur base synthétique de 152 506 lignes : 2,93 s. AMB-037 ouverte. Restent : mesures sur la vraie copie depuis le poste du comptable (AMB-001, 002, 028), fiche S-000, relecture des guides.
 
 **Acceptation :** `.exe` lancé sur un poste propre, parcours complet OK, guides relus.
