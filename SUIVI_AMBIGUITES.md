@@ -370,3 +370,12 @@
 - **Options :** 1. Laisser tel quel (le journal et l'index font foi). 2. Afficher un message persistant (« n trace(s) en attente déposée(s) »).
 - **Décision utilisateur :** option 1, « laisse tel quel » (2026-10-04).
 - **Code concerné :** `traceur/controleur.py` (`reprendre_depots`), inchangé.
+
+### AMB-037 — Clé candidate fortuite sur une petite table (profil)
+- **Statut :** OUVERTE
+- **Jalon / SPEC :** J7 (constaté avec `traceur.exe`) / §6.3, §6.4 ; AMB-014 (préférence), AMB-015 (minimum de lignes)
+- **Contexte :** sur la base synthétique, `COMPTEURS` (3 lignes) a été profilée à un moment où `DERNIER_NUM` valait trois valeurs différentes (3, …, 42). Colonne entière et unique, elle devient clé candidate et passe **avant** `CODE_JOURNAL` (entier préféré au texte, AMB-014). Or c'est le compteur qui change : le diff y voit une ligne supprimée et une ajoutée, et le rapport affiche « Modification probable… à confirmer » au lieu de « Ligne modifiée (CODE_JOURNAL = ACH) ». Même base, même scénario : le profil de 13:34 (2 valeurs distinctes) donnait la bonne clé. Le résultat reste correct mais moins net ; aucune donnée n'est perdue.
+- **Options :** 1. Ne rien changer au moteur ; profiler toujours la base **juste après réinitialisation** (état de référence, reproductible) — consigné dans les guides ; le repli « modification probable » couvre le reste. 2. Relever `NB_LIGNES_MIN_CLE` (par exemple 10) : une table de moins de 10 lignes n'a plus de clé candidate fortuite, donc comparaison par multi-ensemble avec « modification probable » (moins précise, plus prudente). 3. Signaler dans `profil.html`, pour les tables de moins de N lignes, que la clé candidate est peu fiable. 4. Préférer un texte court à un entier pour les petites tables (change AMB-014).
+- **Recommandation :** 1 + 3. 1 est déjà appliqué dans les guides ; 3 rend le risque visible sans changer le comportement du diff.
+- **Code concerné :** `traceur/moteur/profilage.py` (`_cles_candidates`, `NB_LIGNES_MIN_CLE`), `traceur/rapports/profil.py`. Rien n'est modifié en attendant la décision.
+- **Décision utilisateur :**

@@ -44,7 +44,7 @@ Dans le JSON, chaque `\` s'écrit `\\` (exemple : `"C:\\Traceur\\test\\compta_te
 ## 4. Premier démarrage
 1. Double-cliquez `traceur.exe`. Si Windows SmartScreen affiche un avertissement (programme non signé), cliquez « Informations complémentaires » puis « Exécuter quand même ».
 2. Le bandeau doit afficher **« Connectée en lecture seule (N tables) »** en vert.
-3. Cliquez **Profiler la base** : un `profil.html` est produit dans le dossier de sorties (dictionnaire des tables, clés, relations candidates).
+3. **Réinitialisez la base** (bouton « Réinitialiser la base »), *puis* cliquez **Profiler la base** : le profil doit être pris sur l'état de référence, reproductible (sur une petite table, des valeurs qui changent d'une saisie à l'autre peuvent rendre fortuitement unique une colonne qui ne l'est pas d'habitude, et fausser la clé retenue : AMB-037). Un `profil.html` est produit dans le dossier de sorties (dictionnaire des tables, clés, relations candidates).
 4. Cliquez **Calibrer le bruit** : attendez le décompte **sans toucher à la base ni au logiciel**. Le Traceur propose les tables qui changent toutes seules (journaux, verrous…).
 
 ## 5. Fiche de validation du poste « S-000 » (à faire une fois par poste)

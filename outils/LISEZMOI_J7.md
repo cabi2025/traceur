@@ -59,8 +59,8 @@ Double-cliquez `C:\TraceurExe\traceur.exe`.
 4. Les deux fiches S-SYN-01 et S-SYN-02 sont listées.
 
 Faites alors le parcours court :
-- **Profiler la base** → `profil.html` (dans `C:\TraceurExe\sorties\profil\`).
 - **Réinitialiser la base** → Oui → « Base réinitialisée ».
+- **Profiler la base** (toujours *après* une réinitialisation : voir AMB-037) → `profil.html` (dans `C:\TraceurExe\sorties\profil\`).
 - **S-SYN-01** : Choisir → Début → attendre que **Fin** soit actif → dans le terminal A `python outils\simuler_logiciel.py C:\Traceur\test\synthetique.mdb` (une fois) → Fin → remarque libre → **Ouvrir le rapport**.
 
 **Attendu :** « 5 tables modifiées, 3 lignes ajoutées, 2 modifiées, 1 supprimée » ; rapport complet avec les deux captures ; dossier `C:\TraceurExe\sorties\traces\S-SYN-01_…` et `index.html`.
