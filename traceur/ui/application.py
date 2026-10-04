@@ -217,9 +217,11 @@ class Application(tk.Tk):
         self.txt_remarques.configure(state="normal" if en_cours else "disabled")
         peut_annuler_op = c.occupe and etat != Etat.FIN_EN_COURS
         self.btn_annuler_op.state(["!disabled"] if peut_annuler_op else ["disabled"])
-        if not c.occupe and self.barre["mode"] == "indeterminate":
+        if not c.occupe:  # au repos : barre vide (jamais de curseur « en attente » figé)
             self.barre.stop()
-            self.barre.configure(mode="determinate", value=0)
+            if self.barre["mode"] != "determinate":
+                self.barre.configure(mode="determinate")
+            self.barre.configure(value=0)
 
     # -- écouteur du contrôleur (appelé dans le fil de l'interface) ------------------------------
 

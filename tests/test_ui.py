@@ -519,3 +519,16 @@ def test_dialogue_resultat_avec_ecart_et_depot_en_attente(poste: Poste) -> None:
 
     poste.app.after(150, agir)
     assert dialogues.resultat_fiche(_faux_resultat("ecart_saisie", ecarts, en_attente=True), lambda p: None) == "rejouer"
+
+
+def test_barre_vide_au_repos_apres_chaque_operation(poste: Poste) -> None:
+    def au_repos() -> None:
+        assert str(poste.app.barre.cget("mode")) == "determinate" and float(poste.app.barre.cget("value")) == 0.0
+
+    poste.demarrer()  # test de connexion puis reprise des dépôts : deux opérations indéterminées d'affilée
+    au_repos()
+    poste.cliquer(poste.app.btn_profil)
+    au_repos()
+    poste.monde.echecs_connexion.append(ErreurConnexion("Connexion à la base impossible."))
+    poste.cliquer(poste.app.btn_profil)  # une erreur laisse aussi la barre vide
+    au_repos()

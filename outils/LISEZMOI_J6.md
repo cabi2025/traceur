@@ -18,7 +18,7 @@ L'interface a été testée sous Linux avec un écran virtuel (27 tests de fenê
 python -m pytest -q -rs
 ```
 
-**Résultat attendu :** `403 passed`, **aucune ligne `SKIPPED`**. Pendant ces tests, des fenêtres apparaissent et disparaissent très vite : c'est normal (tests de l'interface). Si des tests de l'interface échouent, envoyez-moi le premier message d'erreur de chacun.
+**Résultat attendu :** `404 passed`, **aucune ligne `SKIPPED`**. Pendant ces tests, des fenêtres apparaissent et disparaissent très vite : c'est normal (tests de l'interface). Si des tests de l'interface échouent, envoyez-moi le premier message d'erreur de chacun.
 
 ## 1. Préparer `config.json` et les fiches
 
@@ -156,7 +156,7 @@ Ouvrez `C:\Traceur\traceur\journal.log` : on y lit la connexion en lecture seule
 
 ## À m'envoyer
 
-1. Le résultat de l'étape 0 (`pytest`) : `403 passed` ou le détail des échecs.
+1. Le résultat de l'étape 0 (`pytest`) : `404 passed` ou le détail des échecs.
 2. Des **captures d'écran** : l'écran principal (étape 2), l'écran de fiche en cours (étape 5.2), la boîte d'écart (étape 6.3).
 3. Ce qui n'est pas clair ou pas lisible pour le comptable (écrans, rapport).
 4. Le temps que prend **Début** et **Fin** sur la base synthétique, puis sur une copie de votre vraie base si vous la testez (AMB-002, AMB-032).
