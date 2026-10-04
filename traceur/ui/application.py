@@ -296,7 +296,8 @@ class Application(tk.Tk):
         self.etat_change()
         if fiche.reinitialiser_avant and self.dialogues.confirmer(
                 "Réinitialiser avant de commencer ?",
-                "Cette fiche demande de réinitialiser la base de TEST avant de commencer.\nRéinitialiser maintenant ?"):
+                "Cette fiche demande de réinitialiser la base de TEST avant de commencer.\nRéinitialiser maintenant ?",
+                avertissement=True):
             self._reinitialiser(rejouer=None)
 
     def _reinitialiser(self, rejouer: str | None = None) -> None:
@@ -306,7 +307,7 @@ class Application(tk.Tk):
         except ErreurAffichable as erreur:
             self.dialogues.erreur(erreur.message)
             return
-        if self.dialogues.confirmer("Réinitialiser la base de TEST", texte):
+        if self.dialogues.confirmer("Réinitialiser la base de TEST", texte, avertissement=True):
             self._rejouer = rejouer
             c.reinitialiser(True)
 
@@ -328,7 +329,8 @@ class Application(tk.Tk):
         if c.etat == Etat.DEBUT_EN_COURS:
             c.annuler()
             return
-        if self.dialogues.confirmer("Annuler la fiche", "Annuler la fiche en cours ?\nLa trace sera conservée, marquée « annulée »."):
+        if self.dialogues.confirmer("Annuler la fiche", "Annuler la fiche en cours ?\nLa trace sera conservée, marquée « annulée ».",
+                                    avertissement=True):
             c.annuler(self.txt_remarques.get("1.0", "end").strip())
 
     # -- fins d'opérations -----------------------------------------------------------------------
@@ -394,10 +396,11 @@ class Application(tk.Tk):
     def _quitter(self) -> None:
         c = self.controleur
         if c.etat == Etat.EN_COURS and not self.dialogues.confirmer(
-                "Quitter", "Une fiche est en cours : quitter l'abandonnera (la trace sera marquée « annulée »).\nQuitter ?"):
+                "Quitter", "Une fiche est en cours : quitter l'abandonnera (la trace sera marquée « annulée »).\nQuitter ?",
+                avertissement=True):
             return
         if c.occupe and c.etat != Etat.EN_COURS and not self.dialogues.confirmer(
-                "Quitter", "Une opération est en cours : elle sera interrompue.\nQuitter ?"):
+                "Quitter", "Une opération est en cours : elle sera interrompue.\nQuitter ?", avertissement=True):
             return
         self._fermeture_demandee = True
         if c.etat == Etat.EN_COURS:

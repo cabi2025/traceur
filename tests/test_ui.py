@@ -36,6 +36,7 @@ class FauxDialogues:
         self.erreurs: list[str] = []
         self.infos: list[tuple[str, str]] = []
         self.confirmations: list[tuple[str, str]] = []
+        self.avertissements: dict[str, bool] = {}  # titre -> icône « attention » demandée
         self.reponses: dict[str, bool] = {}  # par titre ; défaut True
         self.tables_bruit: list[str] | None = None
         self.propositions: list[dict[str, str]] = []
@@ -49,8 +50,9 @@ class FauxDialogues:
     def info(self, titre: str, message: str) -> None:
         self.infos.append((titre, message))
 
-    def confirmer(self, titre: str, message: str) -> bool:
+    def confirmer(self, titre: str, message: str, avertissement: bool = False) -> bool:
         self.confirmations.append((titre, message))
+        self.avertissements[titre] = avertissement
         return self.reponses.get(titre, True)
 
     def choisir_tables_bruit(self, propositions: Any) -> list[str] | None:
@@ -532,3 +534,26 @@ def test_barre_vide_au_repos_apres_chaque_operation(poste: Poste) -> None:
     poste.monde.echecs_connexion.append(ErreurConnexion("Connexion à la base impossible."))
     poste.cliquer(poste.app.btn_profil)  # une erreur laisse aussi la barre vide
     au_repos()
+
+
+def test_icones_des_confirmations(poste: Poste) -> None:
+    """Question simple pour une information (profilage), « attention » pour ce qui est destructeur."""
+    poste.demarrer()
+    poste.cliquer(poste.app.btn_profil)
+    poste.cliquer(poste.app.btn_reinit)
+    poste.choisir()
+    poste.cliquer(poste.app.btn_debut)
+    poste.cliquer(poste.app.btn_annuler)
+    poste.choisir()
+    poste.cliquer(poste.app.btn_debut)
+    poste.app._quitter()  # fiche en cours : confirmation puis fermeture
+    fin = time.monotonic() + 5
+    while time.monotonic() < fin:
+        try:
+            poste.app.update()
+        except tkinter.TclError:
+            break
+        time.sleep(0.01)
+    assert poste.dialogues.avertissements["Profilage terminé"] is False
+    for titre in ("Réinitialiser la base de TEST", "Annuler la fiche", "Quitter"):
+        assert poste.dialogues.avertissements[titre] is True, titre

@@ -109,9 +109,9 @@
 - [x] Annuler, remarques, alerte d'écart de saisie
 - [x] Messages d'erreur en français, détail dans `journal.log`
 
-> 2026-10-03 — **Livré, parcours Windows en attente.** Sous Linux : Python 3.11 → 363 passés, 14 sautés (12 Access + 2 Tkinter) ; Python 3.12 avec écran virtuel (`xvfb-run`) → 392 passés, 12 sautés (Access seulement), dont 27 tests de la vraie fenêtre Tkinter et 7 du point d'entrée. `mypy --strict traceur/moteur` sans erreur.
-> Validé sous Windows (2026-10-04, Python 3.14.8 32 bits) : 403 tests passés (dont les 27 de la fenêtre Tkinter) ; l'application se lance et affiche « Connectée en lecture seule (5 tables) » (à lancer dans l'environnement `.venv`). Constat : curseur vert figé sur la barre au repos → corrigé (404 attendus après `git pull`).
-> Attendu sous Windows : 404 passés, 0 sauté (`outils/LISEZMOI_J6.md`, étape 0). Reste à vérifier chez vous le rendu réel et le parcours complet (étapes 2 à 11).
+> 2026-10-03 — **Livré, parcours Windows en attente.** Sous Linux : Python 3.11 → 363 passés, 14 sautés (12 Access + 2 Tkinter) ; Python 3.12 avec écran virtuel (`xvfb-run`) → 393 passés, 12 sautés (Access seulement), dont 27 tests de la vraie fenêtre Tkinter et 7 du point d'entrée. `mypy --strict traceur/moteur` sans erreur.
+> Validé sous Windows (2026-10-04, Python 3.14.8 32 bits) : 403 tests passés (dont les 27 de la fenêtre Tkinter) ; l'application se lance et affiche « Connectée en lecture seule (5 tables) » (à lancer dans l'environnement `.venv`). Constat : curseur vert figé sur la barre au repos → corrigé (405 attendus après `git pull`).
+> Attendu sous Windows : 405 passés, 0 sauté (`outils/LISEZMOI_J6.md`, étape 0). Reste à vérifier chez vous le rendu réel et le parcours complet (étapes 2 à 11).
 > En tête de J6 : AMB-029, 030, 031 closes (captures de tous les écrans). Nouvelles ambiguïtés ouvertes : AMB-032 à AMB-035.
 > Correction de sécurité trouvée par les tests : au lancement, le journal était configuré deux fois (sans puis avec secret) et le premier gestionnaire n'avait pas le masquage → un seul journal désormais.
 
