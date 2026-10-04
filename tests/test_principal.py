@@ -79,6 +79,27 @@ def test_configuration_invalide(dossier: Path, monkeypatch: pytest.MonkeyPatch) 
     assert principal.lancer([], dossier=dossier) == 1 and "instantane_reference" in messages[0]
 
 
+def test_pyodbc_inutilisable_message_clair_avant_d_ouvrir_la_fenetre(dossier: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    messages: list[str] = []
+    monkeypatch.setattr(principal, "_erreur_fatale", messages.append)
+    monkeypatch.setitem(__import__("sys").modules, "pyodbc", None)  # import impossible
+    assert principal.lancer([], dossier=dossier) == 1
+    assert "pyodbc" in messages[0] and "Cause :" in messages[0] and "pip install pyodbc" in messages[0]
+    assert "même environnement" in messages[0]
+
+
+def test_pilote_access_absent_message_clair(dossier: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    messages: list[str] = []
+    monkeypatch.setattr(principal, "_erreur_fatale", messages.append)
+    faux = types.ModuleType("pyodbc")
+    faux.drivers = lambda: ["SQL Server"]  # type: ignore[attr-defined]
+    monkeypatch.setitem(__import__("sys").modules, "pyodbc", faux)
+    assert principal.lancer([], dossier=dossier) == 1
+    assert "Aucun pilote ODBC Access" in messages[0] and "32 bits" in messages[0]
+
+
 @pytest.mark.skipif(not _ecran(), reason="aucun écran disponible pour Tkinter")
 def test_demarrage_complet(dossier: Path) -> None:
     from test_ui import FauxDialogues

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import struct
+import sys
 from dataclasses import dataclass, field
 from types import ModuleType
 from typing import Any, Callable, Iterator, Sequence
@@ -57,11 +58,15 @@ class ParametresAccess:
 
 
 def importer_pyodbc() -> ModuleType:
+    """Charge pyodbc ; le message reprend l'erreur réelle (module absent, DLL introuvable, mauvaise taille…)."""
     try:
         import pyodbc
-    except ImportError:
+    except ImportError as erreur:
         raise ErreurPilote(
-            "Le module Python « pyodbc » n'est pas installé.\nInstallez-le avec : pip install pyodbc"
+            "Le module Python « pyodbc » n'est pas utilisable.\n"
+            f"Cause : {erreur}\n"
+            "Installez-le avec : pip install pyodbc — dans le même environnement Python que celui qui lance "
+            f"le traceur (celui-ci : {sys.executable})."
         ) from None
     return pyodbc
 

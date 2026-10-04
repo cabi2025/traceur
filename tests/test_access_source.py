@@ -47,7 +47,24 @@ def test_aucun_pilote_message_clair() -> None:
 
 def test_pyodbc_absent_message(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(__import__("sys").modules, "pyodbc", None)
-    with pytest.raises(ErreurPilote, match="pip install pyodbc"):
+    with pytest.raises(ErreurPilote, match="pip install pyodbc") as e:
+        access.importer_pyodbc()
+    assert "Cause :" in str(e.value) and "même environnement" in str(e.value)
+
+
+def test_cause_reelle_de_l_echec_d_import(monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+
+    reel = builtins.__import__
+
+    def import_casse(nom: str, *args: object, **kwargs: object) -> object:
+        if nom == "pyodbc":
+            raise ImportError("DLL load failed while importing pyodbc : %1 n'est pas une application Win32 valide.")
+        return reel(nom, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.delitem(__import__("sys").modules, "pyodbc", raising=False)
+    monkeypatch.setattr(builtins, "__import__", import_casse)
+    with pytest.raises(ErreurPilote, match="DLL load failed"):
         access.importer_pyodbc()
 
 

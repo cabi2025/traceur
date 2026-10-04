@@ -10,12 +10,22 @@ from typing import Sequence
 from traceur.config import ErreurConfiguration, charger_configuration
 from traceur.controleur import Controleur, FabriqueSource
 from traceur.securite import ErreurSecurite, configurer_journal, dossier_application, verifier_demarrage
-from traceur.sources.access import ParametresAccess, SourceAccess
+from traceur.sources.access import (
+    ErreurAccess,
+    ParametresAccess,
+    SourceAccess,
+    choisir_pilote,
+    importer_pyodbc,
+)
 
 
 def fabrique_access(config) -> FabriqueSource:  # type: ignore[no-untyped-def]
+    """Chaque photo ouvre une connexion neuve. pyodbc et le pilote sont contrôlés ici, dès le démarrage
+    et dans le fil principal : une installation incomplète donne un message clair avant l'ouverture."""
     parametres = ParametresAccess.depuis_configuration(config)
-    return lambda: SourceAccess(parametres)
+    module = importer_pyodbc()
+    pilote = choisir_pilote(list(module.drivers()))
+    return lambda: SourceAccess(parametres, module, pilote)
 
 
 def _erreur_fatale(message: str) -> None:
@@ -55,9 +65,14 @@ def lancer(argv: Sequence[str] | None = None, fabrique: FabriqueSource | None = 
             ctypes.windll.shcore.SetProcessDpiAwareness(1)  # type: ignore[attr-defined]
         except Exception:  # noqa: BLE001
             pass
+    try:
+        fabrique = fabrique or fabrique_access(config)
+    except ErreurAccess as erreur:
+        _erreur_fatale(str(erreur))
+        return 1
     from traceur.ui.application import Application
 
-    controleur = Controleur(config, fabrique or fabrique_access(config), dossier / "traces_locales",
+    controleur = Controleur(config, fabrique, dossier / "traces_locales",
                             dossier / "donnees_locales", ecouteur=None)  # type: ignore[arg-type]
     application = Application(controleur, dialogues)
     application.demarrer()
