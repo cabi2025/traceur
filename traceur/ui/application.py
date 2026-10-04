@@ -8,6 +8,7 @@ la fenêtre ne se fige donc jamais.
 from __future__ import annotations
 
 import gc
+import logging
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
@@ -19,6 +20,7 @@ from .dialogues import Dialogues, DialoguesTk
 
 COULEUR_OK, COULEUR_ERREUR, COULEUR_ALERTE, COULEUR_NEUTRE = "#2e7d32", "#c62828", "#b36b00", "#555555"
 INTERVALLE_MS = 100
+journal = logging.getLogger("traceur.ui")
 
 
 class Application(tk.Tk):
@@ -239,16 +241,23 @@ class Application(tk.Tk):
             self.barre.configure(value=fraction * 100)
 
     def erreur(self, erreur: ErreurAffichable) -> None:
+        if self._fermeture_demandee:  # on quitte : pas de boîte de dialogue
+            journal.info("Erreur pendant la fermeture : %s", erreur.message)
+            return
         self.lbl_etat.configure(text="Opération interrompue.")
         self._rejouer = self._apres_reinit = None
         self._rafraichir()
         self.dialogues.erreur(erreur.message)
 
     def annule(self, nom: str) -> None:
+        if self._fermeture_demandee:
+            return
         self.lbl_etat.configure(text="Opération annulée : rien n'a été enregistré.")
         self._rafraichir()
 
     def etat_change(self) -> None:
+        if self._fermeture_demandee:
+            return
         c = self.controleur
         self._remplir_fiches()
         if c.etat == Etat.REPOS:
@@ -261,6 +270,8 @@ class Application(tk.Tk):
         self._rafraichir()
 
     def resultat(self, nom: str, valeur: Any) -> None:
+        if self._fermeture_demandee:  # on quitte : le résultat est enregistré, mais rien n'est affiché
+            return
         self._rafraichir()
         self.lbl_etat.configure(text="Prêt.")
         self.barre.configure(value=0)
@@ -408,6 +419,22 @@ class Application(tk.Tk):
         else:
             c.annuler_operation()
         self._attendre_puis_fermer(50)
+
+    def arreter(self) -> None:
+        """Arrêt sans dialogue (Ctrl+C dans le terminal) : une fiche en cours est enregistrée comme
+        annulée, une opération en cours est interrompue, puis la fenêtre se ferme."""
+        c = self.controleur
+        self._fermeture_demandee = True
+        try:
+            if c.etat == Etat.EN_COURS:
+                c.annuler("Abandonnée : arrêt du traceur (Ctrl+C).")
+            else:
+                c.annuler_operation()
+            c.executeur.attendre(10)
+        except Exception:  # noqa: BLE001 - on ferme quoi qu'il arrive
+            journal.exception("Erreur pendant l'arrêt du traceur")
+        finally:
+            self.destroy()
 
     def destroy(self) -> None:
         try:

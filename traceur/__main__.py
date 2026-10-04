@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -78,7 +79,12 @@ def lancer(argv: Sequence[str] | None = None, fabrique: FabriqueSource | None = 
     application.demarrer()
     if not boucle:
         return application
-    application.mainloop()
+    try:
+        application.mainloop()
+    except KeyboardInterrupt:  # Ctrl+C dans le terminal : arrêt propre, sans trace d'erreur
+        logging.getLogger("traceur").info("Arrêt demandé par Ctrl+C.")
+        application.arreter()
+        return 130
     return 0
 
 

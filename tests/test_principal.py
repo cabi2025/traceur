@@ -120,3 +120,21 @@ def test_demarrage_complet(dossier: Path) -> None:
         assert app.controleur.dossier_local == dossier / "traces_locales" and app.controleur.dossier_donnees == dossier / "donnees_locales"
     finally:
         app.destroy()
+
+
+@pytest.mark.skipif(not _ecran(), reason="aucun écran disponible pour Tkinter")
+def test_ctrl_c_arret_propre_sans_trace(dossier: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from test_ui import FauxDialogues
+    from traceur.ui.application import Application
+
+    (dossier / "monde").mkdir()
+    monde = Monde(dossier / "monde")
+
+    def mainloop_interrompu(self: Any, *args: Any) -> None:
+        self.controleur.executeur.attendre()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(Application, "mainloop", mainloop_interrompu)
+    code = principal.lancer([], fabrique=monde.fabrique, dialogues=FauxDialogues(), dossier=dossier)
+    assert code == 130  # convention : 128 + SIGINT
+    assert "Arrêt demandé par Ctrl+C" in (dossier / "journal.log").read_text(encoding="utf-8")

@@ -430,6 +430,7 @@ def test_fermeture_pendant_une_fiche(poste: Poste) -> None:
         poste.app.winfo_exists()
     (dossier,) = (poste.monde.tmp / "partage" / "traces").iterdir()
     assert json.loads((dossier / "trace.json").read_text(encoding="utf-8"))["execution"]["statut"] == "annulee"
+    assert not poste.dialogues.resultats and not poste.dialogues.erreurs  # aucune boîte pendant la fermeture
 
 
 def test_fermeture_au_repos(poste: Poste) -> None:
@@ -557,3 +558,27 @@ def test_icones_des_confirmations(poste: Poste) -> None:
     assert poste.dialogues.avertissements["Profilage terminé"] is False
     for titre in ("Réinitialiser la base de TEST", "Annuler la fiche", "Quitter"):
         assert poste.dialogues.avertissements[titre] is True, titre
+
+
+def test_arret_propre_pendant_une_fiche(poste: Poste) -> None:
+    """Ctrl+C dans le terminal : la fiche est enregistrée comme annulée, sans aucune boîte de dialogue."""
+    poste.demarrer()
+    poste.choisir()
+    poste.cliquer(poste.app.btn_debut)
+    poste.app.arreter()
+    with pytest.raises(tkinter.TclError):
+        poste.app.winfo_exists()
+    (dossier,) = (poste.monde.tmp / "partage" / "traces").iterdir()
+    trace = json.loads((dossier / "trace.json").read_text(encoding="utf-8"))
+    assert trace["execution"]["statut"] == "annulee" and "Ctrl+C" in trace["execution"]["remarques"]
+    assert not poste.dialogues.resultats and not poste.dialogues.erreurs and not poste.dialogues.confirmations[1:]
+
+
+def test_arret_propre_pendant_une_operation(poste: Poste) -> None:
+    poste.demarrer()
+    poste.monde.bloquer.clear()
+    poste.app.btn_profil.invoke()
+    poste.app.update()
+    poste.monde.bloquer.set()
+    poste.app.arreter()
+    assert poste.c.profil is None and not poste.dialogues.erreurs and not poste.dialogues.confirmations
