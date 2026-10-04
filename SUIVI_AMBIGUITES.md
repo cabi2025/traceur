@@ -362,3 +362,11 @@
 - **Options / recommandation :** (a) l'interface propose la réinitialisation, l'utilisateur peut refuser ; (b) champ vide accepté après une confirmation explicite (« Terminer sans remarque ? ») ; (c) annulation sans trace (la fiche n'a pas commencé) ; (d) `debut` = fin de la photo avant, `fin` = clic sur « Fin » (avant le délai de stabilisation).
 - **Code concerné :** `traceur/ui/application.py`, `traceur/controleur.py` (provisoirement comme recommandé).
 - **Décision utilisateur :**
+
+### AMB-036 — Message de reprise des dépôts en attente
+- **Statut :** CLOSE (2026-10-04)
+- **Jalon / SPEC :** J6 / §5.2, §8
+- **Contexte :** au démarrage, « Vérification des traces en attente de dépôt… » n'apparaît que dans la ligne d'état, quelques centièmes de seconde : l'utilisateur ne le voit pas. Constaté sous Windows ; le dépôt lui-même a fonctionné (journal, dossier `sorties\traces`, `index.html`).
+- **Options :** 1. Laisser tel quel (le journal et l'index font foi). 2. Afficher un message persistant (« n trace(s) en attente déposée(s) »).
+- **Décision utilisateur :** option 1, « laisse tel quel » (2026-10-04).
+- **Code concerné :** `traceur/controleur.py` (`reprendre_depots`), inchangé.
