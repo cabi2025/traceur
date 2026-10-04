@@ -288,6 +288,7 @@
 - **Contexte :** constaté sur Windows (2026-10-03) : le pilote ODBC Jet ne prend pas en charge `SQLPrimaryKeys` (erreur `IM001`). Aucune clé primaire n'était lue.
 - **Options :** 1. Lire les index uniques (`SQLStatistics`) et retenir l'index nommé « PrimaryKey » (nom donné par Access). 2. Passer par ADO/ADOX (`pywin32`) : fiable mais ajoute une dépendance COM à l'exécutable. 3. Ne pas lire de clé primaire et laisser le profilage fournir des clés candidates (le diff reste correct, seul `cle_utilisee.type` vaut `candidate` au lieu de `primaire`).
 - **Constat (2e essai Windows) :** `SQLStatistics` répond, mais une clé déclarée en SQL (`... LONG PRIMARY KEY`) n'a pas reçu l'index « PrimaryKey » attendu : le nom donné par Jet à une clé SQL sans nom est inconnu. Le générateur de test nomme donc la contrainte explicitement. Reste à savoir ce qu'il en est de la **vraie** base (`outils/sonder_pilote.py`).
+- **Vérification (Windows, 2026-10-04) :** sur la base synthétique, `diagnostic.py` affiche `clé primaire : NUM` (FACTURES) et `ID` (CLIENTS, SESSIONS) : la lecture par l'index « PrimaryKey » fonctionne quand la clé est nommée ainsi. Reste la vraie base.
 - **Recommandation :** 1, avec repli sur 3 si aucun index « PrimaryKey » n'existe (ex. clé primaire renommée dans une base ancienne). À valider sur la vraie base avec `outils/sonder_pilote.py`.
 - **Code concerné :** `traceur/sources/access.py` (`_cle_primaire`, provisoirement option 1 + repli 3).
 - **Décision utilisateur :**
