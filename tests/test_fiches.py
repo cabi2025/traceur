@@ -91,3 +91,10 @@ def test_statuts_dossiers_absents_et_traces_illisibles(tmp_path: Path, caplog: p
     (tmp_path / "t" / ".S-1.depot-tmp").mkdir()  # copie en cours : ignorée
     assert statuts_fiches(fiches, [tmp_path / "t", tmp_path / "absent"]) == {"S-1": A_FAIRE}
     assert "Trace illisible ignorée" in caplog.text and "inaccessible" not in caplog.text
+
+
+def test_fiche_de_validation_s000() -> None:
+    """La fiche S-000 du guide (AMB-027) se charge et propose la réinitialisation avant."""
+    (f,) = charger_fiches(Path(__file__).parent.parent / "docs" / "formats" / "fiche_S000.json")
+    assert (f.id, f.lot, f.reinitialiser_avant, len(f.etapes)) == ("S-000", 0, True, 3)
+    assert [(v.champ_ecran, v.valeur) for v in f.valeurs_saisies] == [("Nom", "TEST-S000")]

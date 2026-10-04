@@ -121,10 +121,12 @@
 ---
 
 ## J7 — Livraison
-- [ ] Build PyInstaller `--onefile` **32 bits** : `traceur.exe`
-- [ ] `GUIDE_COMPTABLE.md` (1 page, langage simple) + `GUIDE_INSTALLATION.md` (config, chemins, partage)
-- [ ] Fiche de validation « S-000 » dans le guide (AMB-027) : une saisie simple ; photo après 3 s puis après 10 s ; si les deux diffs diffèrent, augmenter `delai_stabilisation_s`
-- [ ] Test de l'`.exe` sur un poste Windows sans Python
-- [ ] Bilan : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
+- [x] Script de build PyInstaller `--onefile` **32 bits** (`outils/construire_exe.py`, refuse un Python 64 bits, contrôle l'en-tête PE) — `traceur.exe` à construire sous Windows
+- [x] `GUIDE_COMPTABLE.md` (1 page, langage simple) + `GUIDE_INSTALLATION.md` (config, chemins, partage)
+- [x] Fiche de validation « S-000 » (`docs/formats/fiche_S000.json`, procédure dans `GUIDE_INSTALLATION.md` §5) dans le guide (AMB-027) : une saisie simple ; photo après 3 s puis après 10 s ; si les deux diffs diffèrent, augmenter `delai_stabilisation_s`
+- [ ] Test de l'`.exe` sur un poste Windows sans Python (à dérouler : `outils/LISEZMOI_J7.md`)
+- [x] Bilan (`BILAN_V1.md`) : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
+
+> 2026-10-04 — **Livré, test Windows en attente.** Décisions AMB-032 à 035 (recommandations) enregistrées. Construction d'essai sous Linux (64 bits) : l'exécutable démarre, trouve Tkinter/Pillow et écrit `journal.log` à côté de lui. Photo du moteur seul : 23,9 s pour 1,2 million de lignes (SQLite en mémoire) ; la mesure Access reste à faire (AMB-002).
 
 **Acceptation :** `.exe` lancé sur un poste propre, parcours complet OK, guides relus.

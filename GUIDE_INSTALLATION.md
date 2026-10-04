@@ -1,0 +1,83 @@
+# Guide d'installation du Traceur (responsable technique)
+
+Public : la personne qui prépare le poste du comptable. Le comptable, lui, lit `GUIDE_COMPTABLE.md`.
+
+## 1. Ce qu'il faut
+- Un poste **Windows 10 ou 11**. **Aucune installation de Python** n'est nécessaire pour utiliser `traceur.exe`.
+- Le pilote ODBC 32 bits « Microsoft Access Driver (*.mdb) » : il est **fourni avec Windows**, rien à installer. (`traceur.exe` est un programme 32 bits pour cette raison.)
+- Un **dossier de TEST** contenant une copie de la base : c'est la base que le logiciel de comptabilité utilise pendant les fiches (`base_test`).
+- Un **instantané de référence** : une copie *fraîche* de cette base, à un autre endroit (`instantane_reference`). La « réinitialisation » copie ce fichier sur la base de TEST. Ne l'ouvrez jamais avec le logiciel.
+- Un **dossier de sorties** (local ou partage réseau) où les rapports sont déposés (`dossier_sorties`).
+- Les fiches de scénarios (`fichier_fiches`, JSON), facultatif au premier essai : sans fiches, seuls « Profiler » et « Calibrer » fonctionnent.
+
+> Aucune donnée réelle n'est versionnée dans le dépôt. Les copies de bases, `config.json` et les sorties restent sur les postes.
+
+## 2. Dossier de travail
+Créez par exemple `C:\Traceur\` (ou un dossier propre à l'utilisateur) et copiez-y :
+
+```
+traceur.exe
+config.json          ← à partir de docs\formats\config.example.json
+fiches\lot1.json     ← vos fiches (voir docs\formats\fiches.example.json)
+```
+
+À côté de `traceur.exe`, le programme crée lui-même : `journal.log`, `traces_locales\`, `donnees_locales\` (profil et calibration mémorisés). Lancer `traceur.exe --config autre.json` permet d'utiliser une autre configuration.
+
+## 3. `config.json`
+| Clé | Obligatoire | Rôle |
+|---|---|---|
+| `base_test` | oui | Chemin du `.mdb` de **TEST** |
+| `instantane_reference` | oui | Copie fraîche, source de la réinitialisation |
+| `chemins_interdits` | oui | Chemins de la **production**. Mettez le nom du serveur **et** son adresse IP (`\\SERVEUR\Compta\compta.mdb`, `\\10.0.0.5\Compta\compta.mdb`) |
+| `dossier_sorties` | oui | Dépôt des rapports |
+| `fichier_fiches` | non | Fichier JSON des fiches |
+| `mot_de_passe` | non | Mot de passe de la base (déconseillé : retirez-le de la copie de TEST) |
+| `fichier_mdw`, `utilisateur`, `mot_de_passe_mdw` | non | Groupe de travail Access (incompatible avec `mot_de_passe`) |
+| `tables_ignorees` | non | Tables à ignorer en plus de la calibration |
+| `encodage_texte` | non | Défaut `cp1252` |
+| `delai_stabilisation_s` | non | Défaut 3 : attente après « Fin » avant la photo |
+
+Dans le JSON, chaque `\` s'écrit `\\` (exemple : `"C:\\Traceur\\test\\compta_test.mdb"`).
+
+**Règles de sécurité appliquées au démarrage (non contournables) :** refus si `base_test` figure dans `chemins_interdits` ou dans un dossier interdit ; refus si `base_test` et `instantane_reference` désignent le même fichier. Le Traceur ouvre la base **en lecture seule** ; la seule écriture sur un `.mdb` est la réinitialisation (copie vers `base_test` uniquement). Les mots de passe ne sont jamais écrits dans le journal ni dans les rapports.
+
+## 4. Premier démarrage
+1. Double-cliquez `traceur.exe`. Si Windows SmartScreen affiche un avertissement (programme non signé), cliquez « Informations complémentaires » puis « Exécuter quand même ».
+2. Le bandeau doit afficher **« Connectée en lecture seule (N tables) »** en vert.
+3. Cliquez **Profiler la base** : un `profil.html` est produit dans le dossier de sorties (dictionnaire des tables, clés, relations candidates).
+4. Cliquez **Calibrer le bruit** : attendez le décompte **sans toucher à la base ni au logiciel**. Le Traceur propose les tables qui changent toutes seules (journaux, verrous…).
+
+## 5. Fiche de validation du poste « S-000 » (à faire une fois par poste)
+But : vérifier que le délai de stabilisation (`delai_stabilisation_s`, 3 s par défaut) suffit pour que le logiciel de comptabilité ait fini d'écrire quand le Traceur prend la photo « après ».
+
+La fiche est dans `docs\formats\fiche_S000.json` (une saisie simple : créer un tiers de nom `TEST-S000`). Pour l'utiliser, mettez-la dans `fichier_fiches`, ou copiez son contenu dans votre fichier de fiches.
+
+1. Mettez `"delai_stabilisation_s": 3`. Lancez `traceur.exe`, **Réinitialiser la base**, faites S-000 (Début → saisie → Fin). Ouvrez le rapport et notez, pour chaque table, le nombre de lignes ajoutées/modifiées/supprimées.
+2. Fermez le Traceur. Mettez `"delai_stabilisation_s": 10`. Relancez, **réinitialisez la base**, refaites **exactement** la même saisie.
+3. Comparez les deux rapports (section « Ce que la fiche a écrit dans la base »).
+   - **Identiques** : le délai de 3 s suffit. Remettez 3.
+   - **Différents** (le rapport à 10 s contient des écritures de plus) : le logiciel écrit lentement. Augmentez `delai_stabilisation_s` (essayez 10), et refaites S-000 pour confirmer.
+4. Notez la valeur retenue et la durée de photo affichée dans le journal (`Photo : N tables, M lignes en X s`). La photo d'une base de plusieurs centaines de milliers de lignes doit rester sous une minute ; si ce n'est pas le cas, signalez-le : c'est un point ouvert (AMB-002).
+
+## 6. Dépannage
+| Message | Cause probable |
+|---|---|
+| « pyodbc n'est pas installé » / « Aucun pilote ODBC Access » | Ne devrait pas arriver avec `traceur.exe`. Vérifiez que c'est bien la version **32 bits** (`python outils\construire_exe.py` l'indique) et que le pilote existe : `odbcad32` 32 bits (`C:\Windows\SysWOW64\odbcad32.exe`) → onglet *Pilotes*. |
+| « Connexion impossible » | Chemin `base_test` faux, droits insuffisants, mot de passe ou groupe de travail manquant. Détail dans `journal.log`. |
+| « DÉMARRAGE REFUSÉ » | Règle de sécurité : corrigez `config.json`, ne cherchez pas à la contourner. |
+| « RÉINITIALISATION REFUSÉE : la base semble utilisée » | Fichier `.ldb` présent : fermez le logiciel sur tous les postes. Si personne ne l'utilise, un arrêt brutal a pu laisser le fichier : vérifiez avant de le supprimer à la main. |
+| « Le partage est indisponible » | La trace est gardée dans `traces_locales\` et déposée au prochain démarrage. |
+| Texte accentué faux dans les rapports | Changez `encodage_texte`. |
+
+Le journal `journal.log` (à côté de `traceur.exe`) contient le détail de chaque opération et les erreurs ; envoyez-le avec toute demande d'aide (il ne contient aucun mot de passe).
+
+## 7. Construire `traceur.exe` (développeur)
+Sur un poste Windows avec **Python 32 bits** :
+```
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e .[access,ui,build]
+python outils\construire_exe.py --verifier
+python outils\construire_exe.py
+```
+Le script refuse de construire avec un Python 64 bits, produit `dist\traceur.exe` (un seul fichier, sans console), affiche son SHA-256 et contrôle que l'exécutable est bien 32 bits. Pour mettre à jour un poste : remplacez `traceur.exe` ; `config.json`, le journal, `donnees_locales\` et `traces_locales\` ne bougent pas.
