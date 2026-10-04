@@ -21,10 +21,9 @@ Date : 2026-10-04. **J7 clos avec réserves** (voir §5). Périmètre : jalons J
 - Photo ODBC Access sur base synthétique locale : 152 506 lignes en 2,93 s.
 
 ## 3. Ambiguïtés
-**Closes** : AMB-001 et AMB-003 à AMB-037 (hors AMB-002, AMB-028, AMB-038 et AMB-039, ouvertes) (décisions recopiées dans `SUIVI_AMBIGUITES.md`).
+**Closes** : AMB-001 et AMB-003 à AMB-037 (hors AMB-002, AMB-028 et AMB-038, ouvertes ; AMB-039 close : E-7.08 jamais ouvert à Début ni à Fin) (décisions recopiées dans `SUIVI_AMBIGUITES.md`).
 **Ouvertes :**
-- **AMB-038 — traçage multi-bases** (catalogue `.mdb` + base GC SQL Server `GC_TEST`, lecture seule, liste blanche de tables) : reportée, élargie le 2026-10-04 (voir §4 bis). Fiches du pont E-2.07.x interdites avant.
-- **AMB-039 — captures automatiques et mot de passe de l'écran E-7.08** : ouverte (procédure : ne pas ouvrir E-7.08 à Début ni à Fin).
+- **AMB-038 — traçage multi-bases** (catalogue `.mdb` + base GC SQL Server `GC_TEST`, lecture seule, liste blanche de tables) : reportée, élargie le 2026-10-04 (voir §4 bis). Fiches du pont E-2.07.x interdites avant. Précisions du 2026-10-04 : login SQL dédié `traceur_ro` (pas d'authentification Windows), réinitialisation de `GC_TEST` hors Traceur par un script manuel à écrire (`outils/restaurer_gc_test`), question ouverte sur le mode d'authentification du serveur.
 **Ouvertes, en attente de la vraie base :**
 - **AMB-002 — durée de photo réelle.** Mesuré sous Windows par ODBC Access (Python 32 bits, disque local, base synthétique Jet 4 de 7,8 Mo, lignes de 6 colonnes) : **152 506 lignes en 2,93 s** (LIGNES 100 000 en 1,92 s, FACTURES 50 000 en 0,93 s), soit environ 52 000 lignes/s ; profilage complet 3,9 s. Ce n'est qu'un ordre de grandeur : la vraie base sera sur un partage, avec des tables plus larges. Mesuré aussi, moteur seul : 23,9 s pour 1,2 million de lignes en mémoire (SQLite, moteur seul, sur ce poste de développement). La lecture ODBC d'Access sera plus lente : à mesurer (`diagnostic.py --photo`, `LISEZMOI_J7.md` étapes 7 et 8) ; la mesure finale se fait depuis le poste du comptable, base sur le partage réseau. Aucune optimisation avant cette mesure.
 - **AMB-028 — noms des clés primaires** de la vraie base avec le pilote Jet (`sonder_pilote.py` sur une copie).

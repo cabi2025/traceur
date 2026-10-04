@@ -40,8 +40,10 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 - Le paramétrage du pont (écran **E-7.08**) ne se modifie **jamais** dans la comptabilité de production.
 - Préparation TEST, **dans cet ordre** : (1) copier la base GC 2026 en `GC_TEST` ; (2) copier le dossier compta ; (3) **dans le dossier TEST uniquement**, régler E-7.08 sur `GC_TEST` / 2026, en **vérifiant la barre de titre avant de valider** ; (4) prendre les instantanés de référence (dossier TEST et sauvegarde de `GC_TEST`).
 - Les fiches **E-2.07.x** sont **interdites** tant que `GC_TEST` n'existe pas et que le traçage multi-bases (AMB-038) n'est pas livré.
-- Serveur SQL `192.168.16.99` : **jamais de redémarrage**. L'accès du traceur est limité à `GC_TEST`, en **lecture seule** (`db_datareader`, authentification Windows). Les bases GC de production sont **interdites** (équivalent SQL Server de `chemins_interdits`).
-- Les **captures de E-7.08 masquent le champ mot de passe**.
+- Serveur SQL `192.168.16.99` : **jamais de redémarrage**. L'accès du traceur est limité à `GC_TEST`, en **lecture seule**. Les bases GC de production sont **interdites** (équivalent SQL Server de `chemins_interdits`).
+- **Login SQL dédié en lecture seule** : le traceur se connecte à SQL Server avec un **login SQL dédié** (ex. `traceur_ro`), rôle `db_datareader` sur `GC_TEST` **uniquement**, aucun droit sur les autres bases. Il n'utilise **jamais l'authentification Windows** : le compte Windows du comptable a des droits d'écriture sur la GC de production. Le mot de passe est dans `config.json` et **masqué partout** (mêmes règles que les mots de passe Access). La lecture seule est ainsi garantie par le serveur, pas seulement par le code.
+- **Réinitialisation de `GC_TEST` : hors du traceur.** Elle se fait par un script séparé (`outils/restaurer_gc_test`, à écrire plus tard), lancé manuellement, **hors des heures de travail**, qui **refuse toute base dont le nom n'est pas exactement `GC_TEST`**.
+- Les **captures de E-7.08 masquent le champ mot de passe** ; E-7.08 n'est **jamais ouvert à Début ni à Fin** d'une fiche (les captures automatiques ne masquent rien).
 
 ## Stack (décidée — voir SPEC §3)
 - Python 3.11+ **32 bits**, `pyodbc`, Tkinter, Pillow, PyInstaller (un seul `.exe`).

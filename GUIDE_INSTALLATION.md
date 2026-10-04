@@ -58,14 +58,26 @@ La gestion commerciale (GC), du même éditeur, est une base **SQL Server** (`19
 
 **Règles de sécurité :**
 - **Le paramétrage du pont (écran E-7.08) ne se modifie jamais dans la comptabilité de production.** Dans le dossier TEST, E-7.08 pointe au départ vers la GC de **production** : un transfert lancé depuis le dossier TEST lirait la vraie GC et pourrait y écrire.
-- **Le serveur SQL `192.168.16.99` n'est jamais redémarré.** Le Traceur n'y accédera qu'à `GC_TEST`, en **lecture seule** (rôle `db_datareader`, authentification Windows). Les bases GC de production sont **interdites**, comme `chemins_interdits` l'est pour les `.mdb`.
-- **Les captures de E-7.08 masquent le champ mot de passe.** Attention : le Traceur prend des captures de tous les écrans à Début et à Fin ; **ne laissez pas E-7.08 ouvert** à ces moments (AMB-039).
+- **Le serveur SQL `192.168.16.99` n'est jamais redémarré.** Il héberge aussi la production.
+- **Le Traceur n'utilisera pas l'authentification Windows.** Le logiciel legacy se connecte avec le compte Windows du comptable, qui a des droits d'**écriture** sur la GC de production : le Traceur en hériterait. Il utilisera un **login SQL dédié** (par exemple `traceur_ro`) :
+  - rôle `db_datareader` sur **`GC_TEST` uniquement**, aucun droit sur les autres bases ;
+  - mot de passe dans `config.json`, **masqué partout** (journal, rapports) comme les mots de passe Access ;
+  - la lecture seule est ainsi garantie **par le serveur**, pas seulement par le code ;
+  - à demander à l'administrateur de la base. **Vérifiez avec lui que le serveur accepte déjà l'authentification SQL (mode mixte)** : si ce n'est pas le cas, l'activer demande normalement un redémarrage du service SQL Server, interdit ici. Dans ce cas, n'activez rien : prévenez le responsable du projet (AMB-038).
+  - Il faut aussi un **pilote ODBC SQL Server 32 bits** sur le poste (à vérifier : le pilote « SQL Server » fourni avec Windows, ou « ODBC Driver 17/18 » à installer).
+- **Les bases GC de production sont interdites** au Traceur, comme `chemins_interdits` l'est pour les `.mdb`. Il n'accédera qu'à `GC_TEST`, avec une liste blanche de tables (`Ecrit`, `EcritL`, table des tiers de la GC).
+- **Les captures de E-7.08 masquent le champ mot de passe, et E-7.08 n'est jamais ouvert à Début ni à Fin d'une fiche** : les captures automatiques du Traceur (tous les écrans) ne masquent rien (AMB-039, close).
 
 **Préparation TEST du pont, dans cet ordre :**
-1. **Copier la base GC 2026 en `GC_TEST`** (sauvegarde/restauration SQL Server, faite par l'administrateur de la base ; jamais d'action sur la base de production autre qu'une sauvegarde).
+1. **Copier la base GC 2026 en `GC_TEST`** (sauvegarde puis restauration SQL Server, par l'administrateur de la base ; sur la base de production, jamais autre chose qu'une sauvegarde).
 2. **Copier le dossier compta** : c'est le dossier TEST préparé à la section 2 bis.
 3. **Dans le dossier TEST uniquement**, régler E-7.08 (bloc « GC principale ») sur **`GC_TEST`** / **2026**. **Vérifiez la barre de titre avant de valider** : elle doit afficher le dossier TEST (`*** ZZ-TEST TRACEUR Exercice AAAA Utilisateur … ***`), pas la société de production.
 4. **Prendre les instantanés de référence** : le **dossier TEST** (à **reprendre après l'étape 3**, car le réglage de E-7.08 fait désormais partie de l'état de référence) **et une sauvegarde de `GC_TEST`**.
+
+**Réinitialiser `GC_TEST` entre deux fiches du pont : hors du Traceur.** Le Traceur ne réinitialise que le dossier compta (copie de fichier). `GC_TEST` se restaure par un **script séparé, `outils/restaurer_gc_test`, lancé manuellement** :
+- **le script n'existe pas encore** : il sera écrit plus tard (AMB-038). Jusqu'à sa livraison, aucune fiche du pont ;
+- il restaurera `GC_TEST` depuis la sauvegarde de référence (étape 4) et **refusera toute base dont le nom n'est pas exactement `GC_TEST`** ;
+- **la restauration se fait hors des heures de travail** : le serveur `192.168.16.99` est aussi celui de la production, et une restauration le charge.
 
 *Hors périmètre* (inutilisés, décisions du 2026-10-04) : les autres blocs de E-7.08 (minoterie, briqueterie, gaz, hôtel, clinique) et les imports Excel E-7.12, E-7.13, E-7.14, E-7.16.
 
