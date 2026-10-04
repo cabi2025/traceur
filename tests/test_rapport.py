@@ -92,7 +92,7 @@ def test_fiche_annulee(trace_facture: dict[str, Any]) -> None:
     t["execution"]["statut"] = "annulee"
     html = generer_rapport_html(t)
     assert "<b>Annulée.</b>" in html and "Fiche annulée : rien à comparer." in html
-    assert "Valeurs saisies retrouvées" in html and "Aucune valeur saisie n'a été retrouvée" not in html
+    assert "Valeurs saisies retrouvées" not in html and "Aucune valeur saisie n'a été retrouvée" not in html
 
 
 def test_aucune_modification_et_sections_vides(trace_facture: dict[str, Any]) -> None:

@@ -224,7 +224,8 @@ def generer_rapport_html(trace: dict[str, Any], captures: Mapping[str, str | Non
         p.append('<p class="vide">Aucune modification détectée.</p>')
     else:
         p += [_section_table(t) for t in trace["changements"]]
-    p += ["<h2>Valeurs saisies retrouvées</h2>", _section_liens(trace) if ex["statut"] != "annulee" else ""]
+    if ex["statut"] != "annulee":
+        p += ["<h2>Valeurs saisies retrouvées</h2>", _section_liens(trace)]
     p += [_section_ecarts(trace), _section_calcules(trace), _section_bruit(trace),
           _section_schema(trace), _section_avertissements(trace)]
     figures = "".join(
