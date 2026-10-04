@@ -21,7 +21,9 @@ Date : 2026-10-04. **J7 clos avec réserves** (voir §5). Périmètre : jalons J
 - Photo ODBC Access sur base synthétique locale : 152 506 lignes en 2,93 s.
 
 ## 3. Ambiguïtés
-**Closes** : AMB-001 et AMB-003 à AMB-037 (décisions recopiées dans `SUIVI_AMBIGUITES.md`).
+**Closes** : AMB-001 et AMB-003 à AMB-037 (hors AMB-002, AMB-028 et AMB-038, ouvertes) (décisions recopiées dans `SUIVI_AMBIGUITES.md`).
+**Ouvertes :**
+- **AMB-038 — catalogue des sociétés et environnement TEST isolé** : reportée (voir §4 bis).
 **Ouvertes, en attente de la vraie base :**
 - **AMB-002 — durée de photo réelle.** Mesuré sous Windows par ODBC Access (Python 32 bits, disque local, base synthétique Jet 4 de 7,8 Mo, lignes de 6 colonnes) : **152 506 lignes en 2,93 s** (LIGNES 100 000 en 1,92 s, FACTURES 50 000 en 0,93 s), soit environ 52 000 lignes/s ; profilage complet 3,9 s. Ce n'est qu'un ordre de grandeur : la vraie base sera sur un partage, avec des tables plus larges. Mesuré aussi, moteur seul : 23,9 s pour 1,2 million de lignes en mémoire (SQLite, moteur seul, sur ce poste de développement). La lecture ODBC d'Access sera plus lente : à mesurer (`diagnostic.py --photo`, `LISEZMOI_J7.md` étapes 7 et 8) ; la mesure finale se fait depuis le poste du comptable, base sur le partage réseau. Aucune optimisation avant cette mesure.
 - **AMB-028 — noms des clés primaires** de la vraie base avec le pilote Jet (`sonder_pilote.py` sur une copie).
@@ -40,12 +42,19 @@ Date : 2026-10-04. **J7 clos avec réserves** (voir §5). Périmètre : jalons J
 - **Message de reprise des dépôts** au démarrage : très bref, laissé tel quel (AMB-036). Le journal et `index.html` font foi.
 - **L'exe doit être construit sous Windows avec un Python 32 bits** ; il n'a pas pu l'être dans l'environnement de développement Linux. Un essai de construction Linux (64 bits) a seulement confirmé le point d'entrée, l'inclusion de Tkinter/Pillow et l'écriture du journal à côté de l'exécutable.
 
+## 4 bis. Périmètre des sessions : phase 1 (décision de cadrage du 2026-10-04)
+- **Structure** : un catalogue `.mdb` (même dossier que les dossiers, trouvé automatiquement par le logiciel) liste les sociétés et exercices ; un dossier `.mdb` = une société + un exercice.
+- **Périmètre figé** : une société, un exercice **ouvert** (non clôturé), dossier TEST copié d'un exercice réel récent, déclaré dans le catalogue sous « ZZ-TEST TRACEUR » ; `base_test` en dur dans `config.json`.
+- **Lots couverts : 2, 3, 4** (saisies, traitements, états). **Lots 1 et 5 reportés** (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice).
+- **AMB-038 (ouverte, reportée)** : le Traceur ne trace pas le catalogue ; mesure de substitution : date de modification de `catalogue.mdb` avant et après S-000 (si elle change : arrêter et prévenir). À rouvrir avant les lots 1 et 5, ou plus tôt si cette date change pendant S-000.
+- **Données réelles** : le dossier TEST est une copie d'un exercice réel ; rapports, captures et profil contiennent de vraies données (dossier de sorties confidentiel).
+
 ## 5. Réserves de clôture de J7 et prochaines étapes
 **Réserves (décision de l'utilisateur) :**
 1. Premier lancement sur un poste réellement propre = poste du comptable, **antivirus actif** (repli : `--onedir`, exclusion de dossier).
 2. **Mesures sur copie réelle (AMB-001, 002, 028) avant la première session**, depuis le poste du comptable, base sur le partage.
 3. **Fiche S-000** à exécuter avec le comptable (délai de stabilisation).
-4. **Levée.** `GUIDE_COMPTABLE.md` (texte de l'utilisateur) intégré ; `GUIDE_INSTALLATION.md` relu et validé, avec la nouvelle section 2 bis (raccourci « Compta TEST », repère visible). **À compléter avant livraison** (les `[…]` du guide) : repère TEST affiché par le logiciel, nom et téléphone du contact, et la manière dont le logiciel choisit sa base.
+4. **Levée.** `GUIDE_COMPTABLE.md` (texte de l'utilisateur) intégré ; `GUIDE_INSTALLATION.md` relu et validé, avec la section 2 bis remplacée par la préparation du dossier TEST (décision de cadrage ci-dessous). **À compléter avant livraison** (les `[…]` des guides) : nom et téléphone du contact ; menu du logiciel pour déclarer la société « ZZ-TEST TRACEUR » ; nom réellement affiché par le logiciel ; emplacement du dossier TEST par rapport à `chemins_interdits`.
 
 **Ensuite :**
 1. Premières fiches réelles.

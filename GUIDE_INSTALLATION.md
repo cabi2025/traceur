@@ -23,18 +23,25 @@ fiches\lot1.json     ← vos fiches (voir docs\formats\fiches.example.json)
 
 À côté de `traceur.exe`, le programme crée lui-même : `journal.log`, `traces_locales\`, `donnees_locales\` (profil et calibration mémorisés). Lancer `traceur.exe --config autre.json` permet d'utiliser une autre configuration.
 
-## 2 bis. Poste du comptable : raccourci « Compta TEST » et repère visible
-Le Traceur ne sait pas sur quelle base le logiciel de comptabilité travaille : il observe seulement `base_test`. Le risque principal est donc humain : le comptable fait la fiche dans le logiciel branché sur la **production**, pendant que le Traceur regarde la base de TEST (résultat : « Aucune modification détectée », ou pire, des écritures dans la vraie comptabilité). Deux protections, à mettre en place **avant la première séance** :
+## 2 bis. Préparer le dossier de TEST (phase 1 des sessions)
+**Contexte.** Le logiciel de comptabilité ouvre un **catalogue** (`catalogue.mdb`), situé dans le même dossier que les dossiers `.mdb` et trouvé automatiquement par le logiciel. Le catalogue liste les sociétés et les exercices ; chaque **dossier** `.mdb` est une société + un exercice.
 
-1. **Un raccourci « Compta TEST »** sur le bureau du comptable, qui ouvre le logiciel **sur la base de TEST** (`base_test`) et sur rien d'autre.
-   - Créez-le à côté du raccourci habituel (clic droit sur le bureau → Nouveau → Raccourci), nommez-le exactement **Compta TEST**, et donnez-lui une icône ou une couleur différente de l'habituel si possible.
-   - La façon de désigner la base dépend du logiciel : paramètre de ligne de commande, dossier « Démarrer dans » contenant un fichier de configuration qui pointe vers la base de TEST, source de données ODBC, ou lecteur/chemin réseau. **[À compléter : comment le logiciel choisit sa base ; paramètre ou fichier de configuration à utiliser.]**
-   - Vérifiez que ce raccourci ouvre bien `base_test` : faites une saisie anodine, puis une fiche d'essai avec le Traceur ; le rapport doit montrer des écritures. Si le Traceur indique « Aucune modification détectée », le logiciel n'est pas sur la base de TEST : arrêtez et corrigez le raccourci.
-   - Demandez au comptable de ne **jamais** utiliser le raccourci habituel pendant une séance. Si possible, faites-lui ranger ou renommer ce raccourci pour la durée de l'étude.
-2. **Un repère visible dans la base de TEST** : le nom de la société ou du dossier affiché par le logiciel doit contenir **TEST** (par exemple « Société TEST »), de façon visible dès l'ouverture, sur l'écran principal ou dans la barre de titre.
-   - Ce repère se met **dans la copie de TEST avant de faire l'instantané de référence** (ou dans les deux fichiers). Sinon, la réinitialisation recopie l'instantané et **efface le repère**.
-   - Vérifiez-le après une réinitialisation : ouvrez « Compta TEST », constatez que le repère est toujours là.
-   - Le repère à indiquer au comptable (`GUIDE_COMPTABLE.md`, « Avant de commencer ») doit être exactement ce que le logiciel affiche.
+**Périmètre figé de la phase 1** (décision du 2026-10-04) : **une seule société, un seul exercice**, dans un dossier TEST. « Figé » veut dire choisi et fixe, **pas clôturé** : l'exercice doit rester **ouvert à la saisie**. Le dossier TEST est une **copie d'un exercice réel récent et encore ouvert** (vrais comptes, tiers, journaux). `base_test` est le chemin fixe de ce dossier, écrit en dur dans `config.json` : le Traceur n'a besoin d'aucun autre chemin. Lots de fiches couverts : **2, 3 et 4** (saisies, traitements, états). Les lots 1 et 5 (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice) sont **reportés** : ils nécessitent de tracer le catalogue (AMB-038, ouverte).
+
+**Limite à connaître.** Le Traceur ne regarde que `base_test`. Il ne voit **pas** les écritures que le logiciel ferait dans le catalogue. C'est pourquoi l'étape 5 ci-dessous contrôle la date de modification du catalogue.
+
+**Préparation, dans cet ordre :**
+1. **Copier un exercice réel ouvert** vers le dossier TEST. Vous obtenez le fichier désigné par `base_test`. *(Fermez le logiciel sur tous les postes avant de copier.)* **[À confirmer : emplacement du dossier TEST. S'il est dans le même dossier que les `.mdb` de production, `chemins_interdits` doit lister les fichiers de production **un par un**, et non le dossier, sinon le Traceur refuse de démarrer. Voir AMB-038, question (a).]**
+2. **Le déclarer dans le catalogue** sous le nom **ZZ-TEST TRACEUR**, avec la fonction du logiciel prévue pour cela. **[À compléter : menu ou fonction exacte du logiciel pour ajouter une société/un exercice existant.]** Cette étape modifie le catalogue : c'est voulu et ponctuel, et elle précède la mesure de l'étape 5.
+3. **Vérifier que l'exercice accepte une saisie** : ouvrez ZZ-TEST TRACEUR et faites une saisie d'essai ; puis **supprimez cette saisie d'essai, avant l'étape 4**. Notez ce que le logiciel affiche à l'ouverture : c'est ce repère que le comptable verra (`GUIDE_COMPTABLE.md`, « Avant de commencer »). **[À vérifier : le logiciel affiche-t-il « ZZ-TEST TRACEUR », ou le nom de la société réelle contenu dans le dossier copié ?]**
+4. **Prendre l'instantané de référence** : fermez le logiciel, puis copiez le fichier TEST vers `instantane_reference` (un autre fichier, ailleurs). La réinitialisation recopie ce fichier sur `base_test` : l'état de référence est donc celui d'après les étapes 1 à 3.
+5. **Surveiller le catalogue.** Notez la **date de modification de `catalogue.mdb`** (clic droit → Propriétés, ou `dir catalogue.mdb`) **avant** la fiche S-000 (section 5) et **après**. **Si elle change : arrêtez et prévenez le responsable du projet** (le logiciel écrit dans le catalogue de production : AMB-038 est à rouvrir immédiatement).
+   - *Conseil (témoin) :* notez aussi la date après avoir simplement ouvert et fermé le logiciel sur ZZ-TEST TRACEUR **sans rien saisir**, pour savoir si l'ouverture seule modifie le catalogue.
+
+**Aussi :**
+- **Données réelles.** Le dossier TEST est une copie de données réelles : les rapports, les captures d'écran et `profil.html` contiennent de vrais montants, comptes et noms de tiers. Traitez le dossier de sorties comme confidentiel.
+- **`chemins_interdits`** doit contenir le chemin de l'exercice de **production** et le chemin du catalogue de production.
+- Le comptable choisit **ZZ-TEST TRACEUR** dans la liste des sociétés du logiciel, jamais sa société habituelle.
 
 ## 3. `config.json`
 | Clé | Obligatoire | Rôle |
@@ -62,6 +69,8 @@ Dans le JSON, chaque `\` s'écrit `\\` (exemple : `"C:\\Traceur\\test\\compta_te
 
 ## 5. Fiche de validation du poste « S-000 » (à faire une fois par poste)
 But : vérifier que le délai de stabilisation (`delai_stabilisation_s`, 3 s par défaut) suffit pour que le logiciel de comptabilité ait fini d'écrire quand le Traceur prend la photo « après ».
+
+**Avant et après S-000, notez la date de modification de `catalogue.mdb`** (section 2 bis, étape 5).
 
 La fiche est dans `docs\formats\fiche_S000.json` (une saisie simple : créer un tiers de nom `TEST-S000`). Pour l'utiliser, mettez-la dans `fichier_fiches`, ou copiez son contenu dans votre fichier de fiches.
 

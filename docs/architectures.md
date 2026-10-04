@@ -9,9 +9,11 @@
 | Élément | État actuel |
 |---|---|
 | Logiciel | Exécutable autonome (`.exe`) datant de 2000, code source inaccessible |
-| Base de données | Fichier Access `.mdb`, partagé sur le réseau, mots de passe connus |
+| Base de données | Fichiers Access `.mdb`, partagés sur le réseau, mots de passe connus. **Structure : un catalogue `.mdb` + des dossiers `.mdb`** (voir ci-dessous) |
 | Domaine | Comptabilité marocaine (CGNC / PCGE) |
 | Problème | Migration repoussée depuis des années ; évolutions fiscales compensées par des applis externes |
+
+**Structure des données (confirmée le 2026-10-04).** Le logiciel ouvre un **catalogue** `.mdb`, situé dans le même dossier que les dossiers, qu'il trouve automatiquement ; le catalogue liste les **sociétés et exercices**. Chaque **dossier** `.mdb` = une société + un exercice. Conséquence pour le traçage : le traceur observe un dossier (`base_test`) ; les écritures éventuelles dans le catalogue ne sont pas tracées (AMB-038, ouverte, reportée). **Périmètre de la phase 1 des sessions :** une seule société et un seul exercice, dans un dossier TEST copié d'un exercice réel récent et encore ouvert (non clôturé), déclaré dans le catalogue sous le nom « ZZ-TEST TRACEUR ».
 
 **Objectif :** reconstruire un logiciel équivalent et **fiable**, puis y intégrer les fonctionnalités des applis externes.
 
@@ -66,7 +68,7 @@
 
 1. Copier le `.mdb` en `.mdb` de TEST, sans mot de passe.
 2. Faire pointer l'exe sur la base de TEST, sur le poste du comptable.
-   - *À identifier :* comment l'exe localise sa base (fichier `.ini`, registre, DSN ODBC, chemin en dur).
+   - *Identifié (2026-10-04) :* le logiciel passe par le **catalogue** (voir §0). Le dossier TEST y est déclaré sous « ZZ-TEST TRACEUR » ; le comptable le choisit dans la liste des sociétés. Procédure : `GUIDE_INSTALLATION.md` §2 bis. Isoler complètement le catalogue : AMB-038.
 3. Garder une **copie fraîche** de référence pour pouvoir réinitialiser avant les scénarios destructifs (clôtures).
 
 ---
@@ -120,11 +122,13 @@ Code, titre, durée, prérequis, étapes numérotées avec référence de captur
 ### Ordre des lots
 | Lot | Contenu |
 |---|---|
-| 1 | Référentiel : compte, tiers, journal |
-| 2 | Saisie : écriture simple, avec TVA, modification, suppression, validation d'un brouillard |
-| 3 | Traitements : lettrage, délettrage, clôture mensuelle |
-| 4 | États : balance, grand livre, déclaration TVA, exportés si possible |
-| 5 | Clôture annuelle et à-nouveaux, sur copie fraîche, en dernier |
+| 1 | Référentiel : compte, tiers, journal. **Reporté** (décision du 2026-10-04 : création de société ou d'exercice) : conditionné au traçage du catalogue (AMB-038) |
+| 2 | Saisie : écriture simple, avec TVA, modification, suppression, validation d'un brouillard. **Couvert en phase 1** |
+| 3 | Traitements : lettrage, délettrage, clôture mensuelle. **Couvert en phase 1** |
+| 4 | États : balance, grand livre, déclaration TVA, exportés si possible. **Couvert en phase 1** |
+| 5 | Clôture annuelle et à-nouveaux, sur copie fraîche, en dernier. **Reporté** : conditionné au traçage du catalogue (AMB-038) |
+
+**Phase 1 des sessions :** lots 2, 3 et 4, sur un seul exercice ouvert. Les lots 1 et 5 (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice) ne sont étudiés qu'une fois le catalogue tracé.
 
 Les fiches réelles sont rédigées **après** réception des captures, pour reprendre les noms exacts des écrans et des boutons.
 
@@ -184,6 +188,8 @@ Une règle sans preuve reste au statut *hypothèse* et n'est pas codée comme d�
 ### Migration des données
 Reprise complète depuis le `.mdb` grâce au dictionnaire des tables, puis contrôle par comparaison des balances avant et après migration.
 
+**Multi-société / multi-exercice :** la migration est **pilotée par le catalogue**. Le catalogue donne la liste des sociétés et exercices, donc des dossiers `.mdb` à reprendre, et leurs liens (un dossier = une société + un exercice). Le dictionnaire des tables du catalogue est à établir avant la migration (dépend de AMB-038 pour les lots 1 et 5 : création de société ou d'exercice, ouverture du nouvel exercice).
+
 ---
 
 ## 10. Validation et bascule
@@ -209,7 +215,7 @@ Reprise complète depuis le `.mdb` grâce au dictionnaire des tables, puis contr
 ## 12. Points ouverts — à décider ou identifier
 
 - [ ] Nom du logiciel et langage de l'exe (à déduire des fichiers du dossier d'installation)
-- [ ] Méthode de localisation de la base par l'exe
+- [x] Méthode de localisation de la base par l'exe : un **catalogue** `.mdb`, situé dans le même dossier que les dossiers `.mdb`, trouvé automatiquement par le logiciel et listant les sociétés et exercices (confirmé le 2026-10-04). Reste à étudier : le mécanisme pour isoler un catalogue de test (AMB-038)
 - [ ] Version du format `.mdb` (Jet 3 / Jet 4)
 - [ ] Volume d'écritures, nombre de sociétés
 - [ ] Export possible des états (Excel, CSV, texte, ou impression seule)
