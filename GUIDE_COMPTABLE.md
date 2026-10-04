@@ -5,7 +5,7 @@
 **Durée :** 3 à 4 fiches par séance, environ 15 minutes.
 
 ## Avant de commencer — 3 vérifications
-1. **Dans la liste des sociétés du logiciel, choisissez ZZ-TEST TRACEUR**, jamais votre société habituelle. Vérifiez que l'écran du logiciel affiche bien **ZZ-TEST TRACEUR**. Sinon : fermez tout et prévenez [nom].
+1. **Dans la liste des sociétés du logiciel, choisissez ZZ-TEST TRACEUR**, jamais votre société habituelle. Vérifiez que l'écran du logiciel affiche bien **[repère TEST affiché par le logiciel : voir GUIDE_INSTALLATION §2 bis, étape 3 ; à défaut, « ZZ-TEST TRACEUR », le nom choisi dans la liste]**. Sinon : fermez tout et prévenez [nom].
 2. **Fermez les fenêtres confidentielles** (mails, banque…) : le Traceur photographie **tous vos écrans** au début et à la fin.
 3. **Lancez `traceur.exe`** et attendez « Connectée en lecture seule » en vert.
 
@@ -32,7 +32,7 @@
 Vous n'avez pas besoin de les lire : ils sont envoyés automatiquement au responsable du projet.
 
 ## À retenir
-- Toujours **ZZ-TEST TRACEUR** dans la liste des sociétés, jamais votre société habituelle.
+- Toujours **ZZ-TEST TRACEUR** dans la liste des sociétés, jamais votre société habituelle, et le **repère TEST** à l'écran.
 - Une fiche = une saisie, **une seule fois**, entre Début et Fin.
 - Votre erreur → **Annuler**. Message du logiciel → **le noter, puis Fin**.
 - En cas de doute, rien n'est cassé : la base de TEST se remet à zéro d'un clic.

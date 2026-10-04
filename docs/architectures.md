@@ -122,13 +122,14 @@ Code, titre, durée, prérequis, étapes numérotées avec référence de captur
 ### Ordre des lots
 | Lot | Contenu |
 |---|---|
-| 1 | Référentiel : compte, tiers, journal. **Reporté** (décision du 2026-10-04 : création de société ou d'exercice) : conditionné au traçage du catalogue (AMB-038) |
+| 1a | Référentiel : création de compte, de tiers, de journal. **Couvert en phase 1** ; passe en reporté si la date de `catalogue.mdb` change pendant S-000 ou une fiche du lot 1a (plan comptable éventuellement partagé) |
+| 1b | Création de société, création d'exercice. **Reporté** : conditionné au traçage du catalogue (AMB-038) |
 | 2 | Saisie : écriture simple, avec TVA, modification, suppression, validation d'un brouillard. **Couvert en phase 1** |
 | 3 | Traitements : lettrage, délettrage, clôture mensuelle. **Couvert en phase 1** |
 | 4 | États : balance, grand livre, déclaration TVA, exportés si possible. **Couvert en phase 1** |
 | 5 | Clôture annuelle et à-nouveaux, sur copie fraîche, en dernier. **Reporté** : conditionné au traçage du catalogue (AMB-038) |
 
-**Phase 1 des sessions :** lots 2, 3 et 4, sur un seul exercice ouvert. Les lots 1 et 5 (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice) ne sont étudiés qu'une fois le catalogue tracé.
+**Phase 1 des sessions :** lots **1a, 2, 3 et 4**, sur un seul exercice ouvert. Les lots **1b et 5** (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice) ne sont étudiés qu'une fois le catalogue tracé (AMB-038). Réserve : si la date de modification de `catalogue.mdb` change pendant S-000 ou une fiche du lot 1a, le lot 1a passe lui aussi en reporté.
 
 Les fiches réelles sont rédigées **après** réception des captures, pour reprendre les noms exacts des écrans et des boutons.
 
@@ -188,7 +189,7 @@ Une règle sans preuve reste au statut *hypothèse* et n'est pas codée comme d�
 ### Migration des données
 Reprise complète depuis le `.mdb` grâce au dictionnaire des tables, puis contrôle par comparaison des balances avant et après migration.
 
-**Multi-société / multi-exercice :** la migration est **pilotée par le catalogue**. Le catalogue donne la liste des sociétés et exercices, donc des dossiers `.mdb` à reprendre, et leurs liens (un dossier = une société + un exercice). Le dictionnaire des tables du catalogue est à établir avant la migration (dépend de AMB-038 pour les lots 1 et 5 : création de société ou d'exercice, ouverture du nouvel exercice).
+**Multi-société / multi-exercice :** la migration est **pilotée par le catalogue**. Le catalogue donne la liste des sociétés et exercices, donc des dossiers `.mdb` à reprendre, et leurs liens (un dossier = une société + un exercice). Le dictionnaire des tables du catalogue est à établir avant la migration (dépend de AMB-038 pour les lots 1b et 5 : création de société ou d'exercice, ouverture du nouvel exercice).
 
 ---
 

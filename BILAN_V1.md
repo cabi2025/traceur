@@ -45,8 +45,10 @@ Date : 2026-10-04. **J7 clos avec réserves** (voir §5). Périmètre : jalons J
 ## 4 bis. Périmètre des sessions : phase 1 (décision de cadrage du 2026-10-04)
 - **Structure** : un catalogue `.mdb` (même dossier que les dossiers, trouvé automatiquement par le logiciel) liste les sociétés et exercices ; un dossier `.mdb` = une société + un exercice.
 - **Périmètre figé** : une société, un exercice **ouvert** (non clôturé), dossier TEST copié d'un exercice réel récent, déclaré dans le catalogue sous « ZZ-TEST TRACEUR » ; `base_test` en dur dans `config.json`.
-- **Lots couverts : 2, 3, 4** (saisies, traitements, états). **Lots 1 et 5 reportés** (création de société ou d'exercice, clôture annuelle, ouverture du nouvel exercice).
-- **AMB-038 (ouverte, reportée)** : le Traceur ne trace pas le catalogue ; mesure de substitution : date de modification de `catalogue.mdb` avant et après S-000 (si elle change : arrêter et prévenir). À rouvrir avant les lots 1 et 5, ou plus tôt si cette date change pendant S-000.
+- **Lots couverts : 1a, 2, 3, 4** (1a : création de compte, tiers, journal ; saisies, traitements, états). **Lots reportés : 1b et 5** (1b : création de société ou d'exercice ; 5 : clôture annuelle, ouverture du nouvel exercice). **Réserve :** si la date de `catalogue.mdb` change pendant S-000 ou une fiche du lot 1a (plan comptable éventuellement partagé), le lot 1a passe en reporté.
+- **Dossier TEST** : préféré = sous-dossier séparé (`chemins_interdits` = dossier de production entier) ; sinon même dossier que la production (`chemins_interdits` = catalogue + dossiers réels un par un, à tenir à jour) ; choix à l'étape 2 de `GUIDE_INSTALLATION.md` §2 bis.
+- **Repère TEST** : ce que le logiciel affiche réellement ; la société réelle est renommée dans le dossier TEST (avant l'instantané de référence) si elle apparaît ; sinon le repère est le nom choisi dans la liste (ZZ-TEST TRACEUR).
+- **AMB-038 (ouverte, reportée)** : le Traceur ne trace pas le catalogue ; mesure de substitution : date de modification de `catalogue.mdb` avant et après S-000 (si elle change : arrêter et prévenir). À rouvrir avant les lots 1b et 5, ou plus tôt si cette date change pendant S-000 ou une fiche du lot 1a.
 - **Données réelles** : le dossier TEST est une copie d'un exercice réel ; rapports, captures et profil contiennent de vraies données (dossier de sorties confidentiel).
 
 ## 5. Réserves de clôture de J7 et prochaines étapes
@@ -54,7 +56,7 @@ Date : 2026-10-04. **J7 clos avec réserves** (voir §5). Périmètre : jalons J
 1. Premier lancement sur un poste réellement propre = poste du comptable, **antivirus actif** (repli : `--onedir`, exclusion de dossier).
 2. **Mesures sur copie réelle (AMB-001, 002, 028) avant la première session**, depuis le poste du comptable, base sur le partage.
 3. **Fiche S-000** à exécuter avec le comptable (délai de stabilisation).
-4. **Levée.** `GUIDE_COMPTABLE.md` (texte de l'utilisateur) intégré ; `GUIDE_INSTALLATION.md` relu et validé, avec la section 2 bis remplacée par la préparation du dossier TEST (décision de cadrage ci-dessous). **À compléter avant livraison** (les `[…]` des guides) : nom et téléphone du contact ; menu du logiciel pour déclarer la société « ZZ-TEST TRACEUR » ; nom réellement affiché par le logiciel ; emplacement du dossier TEST par rapport à `chemins_interdits`.
+4. **Levée.** `GUIDE_COMPTABLE.md` (texte de l'utilisateur) intégré ; `GUIDE_INSTALLATION.md` relu et validé, avec la section 2 bis remplacée par la préparation du dossier TEST (décision de cadrage ci-dessous). **À compléter avant livraison** (les `[…]` des guides) : nom et téléphone du contact ; menu du logiciel pour déclarer la société « ZZ-TEST TRACEUR » ; repère réellement affiché par le logiciel (étape 3) ; cas A ou B retenu pour l'emplacement du dossier TEST (étape 2).
 
 **Ensuite :**
 1. Premières fiches réelles.
