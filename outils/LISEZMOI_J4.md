@@ -1,5 +1,7 @@
 # J4 — Quoi installer et quoi lancer sur Windows
 
+> **Terminal :** ces guides fonctionnent dans PowerShell (invite `PS C:\...>`) comme dans l'invite de commandes classique. Seule différence connue : pour afficher le code de sortie d'une commande, PowerShell utilise `$LASTEXITCODE` et cmd utilise `%ERRORLEVEL%`.
+
 Ce guide vous fait valider le jalon J4 (accès Access en lecture seule, sécurité, réinitialisation) **sur un poste Windows**.
 Le code a été écrit et testé sous Linux avec un faux pilote : **rien de ce qui suit n'a encore tourné sur un vrai Access**.
 Chaque étape dit quoi taper et **quel résultat attendre**. Si un résultat diffère, arrêtez-vous et envoyez-moi
@@ -228,10 +230,11 @@ Dans `config_refus.json`, mettez `"base_test": "C:\\Traceur\\production\\compta.
 
 ```bat
 python outils\diagnostic.py --config config_refus.json
-echo %ERRORLEVEL%
+echo $LASTEXITCODE        # PowerShell (l'invite commence par « PS »)
+echo %ERRORLEVEL%         # invite de commandes classique (cmd)
 ```
 
-**Résultat attendu :** l'étape 4 affiche `ÉCHEC   DÉMARRAGE REFUSÉ : la base de TEST indiquée est une base de PRODUCTION`, le diagnostic s'arrête avant l'étape 5, et `%ERRORLEVEL%` vaut `1`.
+**Résultat attendu :** l'étape 4 affiche `ÉCHEC   DÉMARRAGE REFUSÉ : la base de TEST indiquée est une base de PRODUCTION`, le diagnostic s'arrête avant l'étape 5, et le code de sortie vaut `1` (`$LASTEXITCODE` sous PowerShell, `%ERRORLEVEL%` sous cmd : sous PowerShell, `%ERRORLEVEL%` s'afficherait tel quel, sans valeur).
 Essayez aussi avec la même valeur écrite autrement (`c:/traceur/PRODUCTION/compta.mdb`) : même refus.
 **Conseil important :** dans `chemins_interdits`, listez **le nom ET l'adresse IP** du serveur de production (par exemple `\\\\SERVEUR\\Compta\\compta.mdb` **et** `\\\\192.168.1.10\\Compta\\compta.mdb`), et le lecteur réseau s'il y en a un. Le traceur résout les noms de serveur en adresses IP avant de comparer ; si cette résolution échoue (réseau coupé, nom inconnu), il compare seulement les textes et écrit un avertissement dans `journal.log` : seule la liste du nom ET de l'IP protège alors.
 Dernier essai : `base_test` = `instantane_reference` → refus « même fichier que l'instantané de référence ».
