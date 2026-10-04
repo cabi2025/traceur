@@ -2,6 +2,7 @@
 
     python outils\\construire_exe.py            # construit
     python outils\\construire_exe.py --verifier # contrôle seulement l'environnement de construction
+    python outils\\construire_exe.py --onedir   # repli : dossier dist\\traceur\\ (voir GUIDE_INSTALLATION, « Antivirus »)
 
 À lancer depuis la racine du dépôt, dans le `.venv` du **Python 32 bits** (SPEC §3) où sont installés
 pyodbc, Pillow et pyinstaller (`pip install -e .[access,ui,build]`). Un `.exe` construit avec un Python
@@ -47,10 +48,13 @@ def problemes_environnement(
     return problemes
 
 
-def commande_pyinstaller(racine: Path = RACINE, python: str | None = None) -> list[str]:
-    """Ligne de commande PyInstaller (sans fichier .spec : tout est visible ici)."""
-    commande = [python or sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile",
-                "--windowed", "--name", NOM,
+def commande_pyinstaller(racine: Path = RACINE, python: str | None = None, onedir: bool = False) -> list[str]:
+    """Ligne de commande PyInstaller (sans fichier .spec : tout est visible ici).
+
+    `onedir` : un dossier (`dist\\traceur\\traceur.exe` + bibliothèques) au lieu d'un fichier unique. Les antivirus
+    se méfient moins d'un exécutable qui ne se décompresse pas à chaque lancement (solution de repli)."""
+    commande = [python or sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
+                "--onedir" if onedir else "--onefile", "--windowed", "--name", NOM,
                 "--distpath", str(racine / "dist"), "--workpath", str(racine / "build"),
                 "--specpath", str(racine / "build")]
     for module in IMPORTS_CACHES:
@@ -80,9 +84,13 @@ def architecture_exe(chemin: Path) -> str:
     return {0x14C: "32 bits", 0x8664: "64 bits"}.get(machine, "inconnue")
 
 
-def construire() -> int:
-    exe = RACINE / "dist" / f"{NOM}.exe"
-    code = subprocess.call(commande_pyinstaller(), cwd=RACINE)
+def chemin_exe(racine: Path = RACINE, onedir: bool = False) -> Path:
+    return racine / "dist" / NOM / f"{NOM}.exe" if onedir else racine / "dist" / f"{NOM}.exe"
+
+
+def construire(onedir: bool = False) -> int:
+    exe = chemin_exe(onedir=onedir)
+    code = subprocess.call(commande_pyinstaller(onedir=onedir), cwd=RACINE)
     if code != 0 or not exe.is_file():
         print("ÉCHEC de la construction (voir le détail ci-dessus).", file=sys.stderr)
         return code or 1
@@ -93,6 +101,8 @@ def construire() -> int:
     if architecture != "32 bits":
         print("PROBLÈME : l'exécutable n'est pas 32 bits : il ne verra pas le pilote ODBC Access.", file=sys.stderr)
         return 3
+    if onedir:
+        print(f"Mode --onedir : copiez TOUT le dossier {exe.parent} (traceur.exe et ses bibliothèques), pas le seul .exe.")
     print("Étape suivante : copiez traceur.exe et config.example.json (docs\\formats) dans un dossier de travail,")
     print("renommez la config en config.json, puis suivez GUIDE_INSTALLATION.md.")
     return 0
@@ -101,6 +111,8 @@ def construire() -> int:
 def principal(argv: Sequence[str] | None = None) -> int:
     parseur = argparse.ArgumentParser(description="Construit traceur.exe (PyInstaller, 32 bits).")
     parseur.add_argument("--verifier", action="store_true", help="contrôle l'environnement sans construire")
+    parseur.add_argument("--onedir", action="store_true",
+                         help="repli antivirus : un dossier au lieu d'un fichier unique (à copier en entier)")
     args = parseur.parse_args(argv)
     problemes = problemes_environnement()
     for p in problemes:
@@ -108,7 +120,7 @@ def principal(argv: Sequence[str] | None = None) -> int:
     if problemes:
         return 2
     print("Environnement de construction : OK (Windows, Python 32 bits, modules présents).")
-    return 0 if args.verifier else construire()
+    return 0 if args.verifier else construire(args.onedir)
 
 
 if __name__ == "__main__":

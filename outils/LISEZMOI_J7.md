@@ -12,7 +12,7 @@ cd C:\Traceur\traceur
 git pull
 python -m pytest -q -rs
 ```
-**Attendu :** `415 passed`, **aucune ligne `SKIPPED`**.
+**Attendu :** `416 passed`, **aucune ligne `SKIPPED`**.
 
 ## 1. Vérifier l'environnement de construction
 ```
@@ -32,6 +32,8 @@ SHA-256   : …
 Architecture de l'exécutable : 32 bits
 ```
 Notez la taille et le SHA-256 (envoyez-les-moi). Si une erreur s'affiche, envoyez-moi les 30 dernières lignes.
+
+*Si l'antivirus bloque ou met en quarantaine `traceur.exe`* (il disparaît, ou une alerte s'affiche) : notez le nom de l'antivirus et le message, ajoutez une exclusion pour le dossier (voir `GUIDE_INSTALLATION.md`, section 7), puis, en repli, construisez en dossier : `python outils\construire_exe.py --onedir` → `dist\traceur\traceur.exe`. Dans ce cas, **copiez tout le dossier `dist\traceur\`** à l'étape 3 au lieu du seul `.exe`.
 
 ## 3. Préparer un dossier de travail propre
 ```
@@ -91,6 +93,8 @@ python outils\diagnostic.py --config config_gros.json --photo
 ```
 **Attendu :** la génération prend quelques minutes (150 000 lignes environ) ; le diagnostic affiche le temps de la photo par table et au total (objectif : moins de 60 s). **Envoyez-moi cette sortie.** Supprimez `gros.mdb` ensuite (c'est une base synthétique, `.gitignore` l'exclut du dépôt).
 
+**Important : la mesure qui compte est celle de la vraie copie, faite depuis le poste du comptable, avec la base sur le partage réseau** (étape 8). La grosse base synthétique locale ci-dessus ne donne qu'un ordre de grandeur : un disque local est bien plus rapide qu'un partage. Pour la mesure finale, mettez `base_test` sur le **chemin réseau réel** (par exemple `\\SERVEUR\Compta_TEST\copie.mdb`, qui s'écrit `"\\\\SERVEUR\\Compta_TEST\\copie.mdb"` dans `config.json`).
+
 ## 8. Sur la vraie base (quand vous pouvez, avec une **copie**)
 Ces trois mesures règlent des points encore ouverts ; elles ne modifient jamais la base :
 ```
@@ -98,10 +102,11 @@ python outils\version_jet.py <copie.mdb>                 (AMB-001 : version Jet)
 python outils\sonder_pilote.py <copie.mdb>               (AMB-028 : noms des clés primaires)
 python outils\diagnostic.py --config config.json --photo (AMB-002 : durée de photo réelle)
 ```
+**Faites ces mesures depuis le poste du comptable, avec la copie de la base placée sur le partage réseau** (le chemin que le comptable utilisera), pas depuis votre poste de développement ni avec un fichier local : la durée de photo dépend du réseau et du poste. Si le comptable n'a pas Python, lancez-les depuis votre poste *connecté au même partage*, en le notant dans votre retour.
 Pour valider le poste du comptable, faites ensuite la fiche **S-000** (`GUIDE_INSTALLATION.md`, section 5).
 
 ## 9. Ce que je vous demande en retour
-1. Le résultat de l'étape 0 (`415 passed`).
+1. Le résultat de l'étape 0 (`416 passed`).
 2. Étape 2 : taille, SHA-256, « 32 bits ».
 3. Étape 4 : capture de la fenêtre ouverte et du rapport.
 4. Étape 5 : le résultat sur un poste propre (ou le test partiel).

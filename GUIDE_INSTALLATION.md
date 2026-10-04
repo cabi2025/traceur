@@ -71,7 +71,17 @@ La fiche est dans `docs\formats\fiche_S000.json` (une saisie simple : créer un 
 
 Le journal `journal.log` (à côté de `traceur.exe`) contient le détail de chaque opération et les erreurs ; envoyez-le avec toute demande d'aide (il ne contient aucun mot de passe).
 
-## 7. Construire `traceur.exe` (développeur)
+## 7. Antivirus : exécutable bloqué ou mis en quarantaine
+Un programme PyInstaller en fichier unique, non signé, est parfois pris pour un logiciel malveillant (« faux positif ») : l'antivirus le bloque au lancement, le supprime, ou le met en quarantaine. Signes : `traceur.exe` disparaît du dossier, une alerte de l'antivirus s'affiche, ou rien ne se passe au double-clic.
+
+1. **Ne désactivez pas l'antivirus.** Demandez au responsable informatique d'ajouter une **exclusion pour le dossier du Traceur** (par exemple `C:\Traceur\`, celui qui contient `traceur.exe`, `config.json`, `journal.log`, `traces_locales\`), et, si l'antivirus le permet, d'**exclure le fichier** `traceur.exe`.
+2. Si `traceur.exe` est en quarantaine : **restaurez-le** depuis l'interface de l'antivirus *après* avoir ajouté l'exclusion. Vérifiez qu'il s'agit bien du fichier fourni : comparez son **SHA-256** (`certutil -hashfile traceur.exe SHA256`) avec celui affiché par `construire_exe.py` à la construction.
+3. Vous pouvez signaler le fichier comme faux positif à l'éditeur de l'antivirus (en lui envoyant le SHA-256).
+4. **Solution de repli : `--onedir`.** Construisez le programme sous forme de dossier plutôt que de fichier unique : `python outils\construire_exe.py --onedir`. Le résultat est le dossier `dist\traceur\` : `traceur.exe` et ses bibliothèques. **Copiez le dossier en entier** (pas le seul `.exe`) sur le poste, et lancez `traceur.exe` à l'intérieur. Cette forme ne se décompresse pas à chaque lancement et est généralement moins suspecte pour les antivirus. `config.json`, le journal et les dossiers `traces_locales\` et `donnees_locales\` se placent à côté de `traceur.exe`, dans ce dossier.
+
+Le Traceur n'a besoin d'aucun accès réseau sortant, n'installe rien et n'écrit que dans son dossier, dans `dossier_sorties` et — pour la réinitialisation seulement — sur la base de TEST.
+
+## 8. Construire `traceur.exe` (développeur)
 Sur un poste Windows avec **Python 32 bits** :
 ```
 python -m venv .venv
@@ -80,4 +90,4 @@ pip install -e .[access,ui,build]
 python outils\construire_exe.py --verifier
 python outils\construire_exe.py
 ```
-Le script refuse de construire avec un Python 64 bits, produit `dist\traceur.exe` (un seul fichier, sans console), affiche son SHA-256 et contrôle que l'exécutable est bien 32 bits. Pour mettre à jour un poste : remplacez `traceur.exe` ; `config.json`, le journal, `donnees_locales\` et `traces_locales\` ne bougent pas.
+Le script refuse de construire avec un Python 64 bits, produit `dist\traceur.exe` (un seul fichier, sans console), affiche son SHA-256 et contrôle que l'exécutable est bien 32 bits. Si un antivirus bloque le fichier unique, voir la section 7 (`--onedir`). Pour mettre à jour un poste : remplacez `traceur.exe` (ou le dossier en mode `--onedir`) ; `config.json`, le journal, `donnees_locales\` et `traces_locales\` ne bougent pas.

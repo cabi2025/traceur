@@ -57,3 +57,12 @@ def test_architecture_exe(tmp_path: Path) -> None:
     texte = tmp_path / "t.txt"
     texte.write_text("pas un exe")
     assert c.architecture_exe(texte) == "inconnue"
+
+
+def test_option_onedir() -> None:
+    racine = Path("/depot")
+    cmd = c.commande_pyinstaller(racine, python="py", onedir=True)
+    assert "--onedir" in cmd and "--onefile" not in cmd and "--windowed" in cmd
+    assert "--onefile" in c.commande_pyinstaller(racine, python="py")
+    assert c.chemin_exe(racine, onedir=True) == racine / "dist" / "traceur" / "traceur.exe"
+    assert c.chemin_exe(racine) == racine / "dist" / "traceur.exe"

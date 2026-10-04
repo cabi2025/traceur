@@ -127,6 +127,6 @@
 - [ ] Test de l'`.exe` sur un poste Windows sans Python (à dérouler : `outils/LISEZMOI_J7.md`)
 - [x] Bilan (`BILAN_V1.md`) : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
 
-> 2026-10-04 — **Livré, test Windows en attente.** Décisions AMB-032 à 035 (recommandations) enregistrées. Construction d'essai sous Linux (64 bits) : l'exécutable démarre, trouve Tkinter/Pillow et écrit `journal.log` à côté de lui. Photo du moteur seul : 23,9 s pour 1,2 million de lignes (SQLite en mémoire) ; la mesure Access reste à faire (AMB-002).
+> 2026-10-04 — **Livré, test Windows en attente (J7 reste ouvert jusqu'à vos essais).** Ajouts : section « Antivirus » du guide d'installation, option `--onedir` de `construire_exe.py` en repli, mesure de photo finale à faire depuis le poste du comptable (partage réseau). Décisions AMB-032 à 035 (recommandations) enregistrées. Construction d'essai sous Linux (64 bits) : l'exécutable démarre, trouve Tkinter/Pillow et écrit `journal.log` à côté de lui. Photo du moteur seul : 23,9 s pour 1,2 million de lignes (SQLite en mémoire) ; la mesure Access reste à faire (AMB-002).
 
 **Acceptation :** `.exe` lancé sur un poste propre, parcours complet OK, guides relus.
