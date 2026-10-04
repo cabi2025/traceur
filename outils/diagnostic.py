@@ -151,7 +151,9 @@ def executer(
         if args.reinitialiser:
             sortie("\n[+] Réinitialisation de la base de TEST (F10)")
             try:
-                resultat = reinitialiser_base_test(config, lambda t: entree(t + "\n  Tapez OUI pour confirmer : ").strip() == "OUI")
+                resultat = reinitialiser_base_test(
+                    config, lambda t: entree(t + "\n  Tapez OUI pour confirmer (OUI, oui ou Oui ; toute autre réponse annule) : ")
+                    .strip().upper() == "OUI")
             except ReinitialisationAnnulee as erreur:
                 sortie(f"      {erreur}")
             except ErreurSecurite as erreur:

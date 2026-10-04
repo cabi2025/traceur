@@ -76,3 +76,16 @@ def test_reinitialisation_confirmee_et_annulee(poste: dict[str, object]) -> None
     code, texte = _lancer(poste, "--reinitialiser", reponse="OUI")
     assert code == 0 and "copie vérifiée" in texte
     assert base.read_bytes() == (poste["dossier"] / "reference.mdb").read_bytes()  # type: ignore[attr-defined,operator]
+
+
+@pytest.mark.parametrize(("reponse", "reinitialisee"), [
+    ("OUI", True), ("oui", True), ("Oui", True), ("  oui  ", True), ("non", False), ("o", False), ("ouiii", False), ("", False)])
+def test_confirmation_insensible_a_la_casse_mais_stricte(poste: dict[str, object], reponse: str, reinitialisee: bool) -> None:
+    base = poste["base"]
+    base.write_bytes(b"MODIFIEE")  # type: ignore[attr-defined]
+    code, texte = _lancer(poste, "--reinitialiser", reponse=reponse)
+    assert code == 0
+    assert ("copie vérifiée" in texte) is reinitialisee
+    assert (base.read_bytes() == (poste["dossier"] / "reference.mdb").read_bytes()) is reinitialisee  # type: ignore[attr-defined,operator]
+    if not reinitialisee:
+        assert "annulée" in texte and base.read_bytes() == b"MODIFIEE"  # type: ignore[attr-defined]
