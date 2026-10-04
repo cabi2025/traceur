@@ -45,7 +45,7 @@ Date : 2026-10-04. **J7 clos avec réserves** (voir §5). Périmètre : jalons J
 1. Premier lancement sur un poste réellement propre = poste du comptable, **antivirus actif** (repli : `--onedir`, exclusion de dossier).
 2. **Mesures sur copie réelle (AMB-001, 002, 028) avant la première session**, depuis le poste du comptable, base sur le partage.
 3. **Fiche S-000** à exécuter avec le comptable (délai de stabilisation).
-4. `GUIDE_COMPTABLE.md` en attente de la relecture de l'utilisateur ; `GUIDE_INSTALLATION.md` relu et validé.
+4. **Levée.** `GUIDE_COMPTABLE.md` (texte de l'utilisateur) intégré ; `GUIDE_INSTALLATION.md` relu et validé, avec la nouvelle section 2 bis (raccourci « Compta TEST », repère visible). **À compléter avant livraison** (les `[…]` du guide) : repère TEST affiché par le logiciel, nom et téléphone du contact, et la manière dont le logiciel choisit sa base.
 
 **Ensuite :**
 1. Premières fiches réelles.

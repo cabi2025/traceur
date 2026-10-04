@@ -1,31 +1,40 @@
 # Guide du comptable — le Traceur en une page
 
-**À quoi ça sert.** Vous refaites sur la **base de TEST** une petite saisie décrite par une *fiche*. Le Traceur regarde ce que le logiciel de comptabilité écrit dans la base et en fait un rapport. Il ne modifie jamais la base : il la lit seulement.
+**À quoi ça sert.** Vous refaites une petite saisie décrite sur une *fiche*, dans une copie de la comptabilité réservée aux essais (la **base de TEST**). Le Traceur observe ce que le logiciel enregistre. Il ne modifie rien : il regarde seulement.
 
-**Avant de commencer.** Fermez les fenêtres qui montrent des informations confidentielles (mails, banque…) : le Traceur prend des **captures de tous vos écrans** au début et à la fin, et elles figurent dans le rapport. Ouvrez le logiciel de comptabilité **sur la base de TEST**, jamais sur la vraie base. Le Traceur affiche en haut « Base de TEST active : … » : vérifiez que c'est bien elle.
+**Durée :** 3 à 4 fiches par séance, environ 15 minutes.
+
+## Avant de commencer — 3 vérifications
+1. **Ouvrez le logiciel de comptabilité avec le raccourci « Compta TEST »**, jamais avec votre raccourci habituel. Vérifiez que l'écran du logiciel affiche bien **[repère TEST, ex. « Société TEST »]**. Sinon : fermez tout et prévenez [nom].
+2. **Fermez les fenêtres confidentielles** (mails, banque…) : le Traceur photographie **tous vos écrans** au début et à la fin.
+3. **Lancez `traceur.exe`** et attendez « Connectée en lecture seule » en vert.
 
 ## Faire une fiche
-1. Lancez `traceur.exe`. Attendez « Connectée en lecture seule » (en vert) dans le bandeau.
-2. Sélectionnez une fiche dans la liste puis cliquez **Choisir une fiche**. Lisez les prérequis et les étapes.
-3. Si la fiche le propose, acceptez de **réinitialiser la base** : elle revient à son état de départ.
-4. Cliquez **Début**. **Attendez** que la barre de progression s'arrête et que le bouton **Fin** devienne actif (non grisé) : la photo « avant » est alors terminée. Ne touchez pas au logiciel avant.
-5. Faites les étapes dans le logiciel, **exactement** comme écrites (mêmes valeurs, même ordre). Cochez-les au fur et à mesure si vous le souhaitez. Si le logiciel affiche un message ou un numéro, notez-le dans le cadre **Remarques / messages affichés** (recopiez-le tel quel).
-6. Cliquez **Fin**. Patientez quelques secondes : le Traceur laisse le logiciel finir ses écritures, puis calcule le rapport. Ne touchez à rien pendant ce temps.
-7. Une fenêtre vous résume le résultat. Cliquez **Ouvrir le rapport** pour le consulter, ou **Fermer**.
+1. Choisissez la fiche dans la liste, cliquez **Choisir une fiche**, lisez les étapes.
+2. Si la fiche le propose, acceptez de **remettre la base à zéro**.
+3. Cliquez **Début**. Attendez que le bouton **Fin** ne soit plus grisé. Ne touchez pas au logiciel avant.
+4. Faites les étapes **exactement** comme écrites : mêmes valeurs, même ordre.
+5. Si le logiciel affiche un **message ou un numéro**, recopiez-le tel quel dans **Remarques**.
+6. Cliquez **Fin** et patientez sans toucher à rien. Un résumé s'affiche : cliquez **Fermer**.
 
 ## Si quelque chose ne va pas
 | Situation | Que faire |
 |---|---|
-| Vous vous êtes trompé de saisie en cours de route | Cliquez **Annuler la fiche**, puis **Oui**. La fiche est notée « annulée », sans comparaison. Réinitialisez la base et recommencez. |
-| Fenêtre orange **« Écart de saisie »** | Une valeur de la fiche n'a pas été retrouvée dans la base : vous avez saisi autre chose, ou le logiciel l'a transformée. Cliquez **Réinitialiser puis rejouer** et refaites la fiche en recopiant les valeurs. Si l'écart revient, gardez le rapport et prévenez le responsable du projet. |
-| **« Réinitialisation refusée : la base semble utilisée »** | Fermez le logiciel de comptabilité (sur tous les postes) puis recommencez. |
-| **« Le partage est indisponible »** | Rien à faire : le rapport est gardé sur ce poste et sera déposé tout seul au prochain démarrage du Traceur. |
-| Le Traceur refuse de démarrer (« base de PRODUCTION », etc.) | **Ne forcez rien.** Prévenez le responsable : le fichier `config.json` est faux. |
+| **Vous** vous êtes trompé (mauvais montant, mauvais compte…) | **Ne corrigez pas dans le logiciel.** Cliquez **Annuler la fiche**, remettez la base à zéro, recommencez. |
+| **Le logiciel** affiche une erreur ou refuse la saisie | **N'annulez pas.** Recopiez le message dans **Remarques**, fermez le message, cliquez **Fin**. Ce refus nous intéresse. |
+| Le résumé dit **« Aucune modification détectée »** | **Arrêtez la séance** et prévenez [nom] : le logiciel n'était peut-être pas sur la base de TEST. |
+| Fenêtre orange **« Écart de saisie »** | Cliquez **Réinitialiser puis rejouer** et refaites la fiche avec soin. Si ça revient, prévenez [nom]. |
+| **« Réinitialisation refusée : la base semble utilisée »** | Fermez le logiciel de comptabilité sur votre poste, puis recommencez. Si ça persiste, prévenez [nom]. |
+| **« Le partage est indisponible »** | Rien à faire : le rapport sera envoyé tout seul plus tard. |
+| Le Traceur refuse de démarrer | **Ne forcez rien.** Prévenez [nom]. |
 
-## Où trouver les rapports
-Dans le dossier de sorties : `traces\…\rapport.html` (un dossier par fiche) et `index.html` qui les liste tous. Un rapport s'ouvre dans le navigateur et se lit sans connaissance technique : **ce que la fiche a écrit**, les **valeurs que vous avez saisies et retrouvées**, et les **valeurs calculées par le logiciel** (celles-ci sont des *hypothèses*, à confirmer).
+## Les rapports
+Vous n'avez pas besoin de les lire : ils sont envoyés automatiquement au responsable du projet.
 
 ## À retenir
-- Une fiche = une saisie courte, **une seule fois** entre Début et Fin.
-- Ne lancez **aucune autre action** dans le logiciel pendant la fiche.
-- En cas de doute : **Annuler la fiche**, réinitialiser, recommencer. Rien n'est cassé : la base de TEST se remet à zéro d'un clic.
+- Toujours **« Compta TEST »**, jamais le raccourci habituel.
+- Une fiche = une saisie, **une seule fois**, entre Début et Fin.
+- Votre erreur → **Annuler**. Message du logiciel → **le noter, puis Fin**.
+- En cas de doute, rien n'est cassé : la base de TEST se remet à zéro d'un clic.
+
+**Contact :** [nom] — [téléphone / poste]

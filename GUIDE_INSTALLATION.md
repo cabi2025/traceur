@@ -23,6 +23,19 @@ fiches\lot1.json     ← vos fiches (voir docs\formats\fiches.example.json)
 
 À côté de `traceur.exe`, le programme crée lui-même : `journal.log`, `traces_locales\`, `donnees_locales\` (profil et calibration mémorisés). Lancer `traceur.exe --config autre.json` permet d'utiliser une autre configuration.
 
+## 2 bis. Poste du comptable : raccourci « Compta TEST » et repère visible
+Le Traceur ne sait pas sur quelle base le logiciel de comptabilité travaille : il observe seulement `base_test`. Le risque principal est donc humain : le comptable fait la fiche dans le logiciel branché sur la **production**, pendant que le Traceur regarde la base de TEST (résultat : « Aucune modification détectée », ou pire, des écritures dans la vraie comptabilité). Deux protections, à mettre en place **avant la première séance** :
+
+1. **Un raccourci « Compta TEST »** sur le bureau du comptable, qui ouvre le logiciel **sur la base de TEST** (`base_test`) et sur rien d'autre.
+   - Créez-le à côté du raccourci habituel (clic droit sur le bureau → Nouveau → Raccourci), nommez-le exactement **Compta TEST**, et donnez-lui une icône ou une couleur différente de l'habituel si possible.
+   - La façon de désigner la base dépend du logiciel : paramètre de ligne de commande, dossier « Démarrer dans » contenant un fichier de configuration qui pointe vers la base de TEST, source de données ODBC, ou lecteur/chemin réseau. **[À compléter : comment le logiciel choisit sa base ; paramètre ou fichier de configuration à utiliser.]**
+   - Vérifiez que ce raccourci ouvre bien `base_test` : faites une saisie anodine, puis une fiche d'essai avec le Traceur ; le rapport doit montrer des écritures. Si le Traceur indique « Aucune modification détectée », le logiciel n'est pas sur la base de TEST : arrêtez et corrigez le raccourci.
+   - Demandez au comptable de ne **jamais** utiliser le raccourci habituel pendant une séance. Si possible, faites-lui ranger ou renommer ce raccourci pour la durée de l'étude.
+2. **Un repère visible dans la base de TEST** : le nom de la société ou du dossier affiché par le logiciel doit contenir **TEST** (par exemple « Société TEST »), de façon visible dès l'ouverture, sur l'écran principal ou dans la barre de titre.
+   - Ce repère se met **dans la copie de TEST avant de faire l'instantané de référence** (ou dans les deux fichiers). Sinon, la réinitialisation recopie l'instantané et **efface le repère**.
+   - Vérifiez-le après une réinitialisation : ouvrez « Compta TEST », constatez que le repère est toujours là.
+   - Le repère à indiquer au comptable (`GUIDE_COMPTABLE.md`, « Avant de commencer ») doit être exactement ce que le logiciel affiche.
+
 ## 3. `config.json`
 | Clé | Obligatoire | Rôle |
 |---|---|---|

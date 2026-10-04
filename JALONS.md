@@ -139,4 +139,4 @@
 >   1. **Premier lancement sur un poste réellement propre = le poste du comptable, antivirus actif** (repli `--onedir` et exclusion de dossier : `GUIDE_INSTALLATION.md` §7).
 >   2. **Mesures sur une copie réelle (AMB-001 version Jet, AMB-002 durée de photo, AMB-028 clés primaires) à faire avant la première session**, depuis le poste du comptable, base sur le partage réseau (`outils/LISEZMOI_J7.md`, étape 8).
 >   3. **Fiche S-000 à exécuter avec le comptable** pour valider le délai de stabilisation (`GUIDE_INSTALLATION.md` §5).
->   4. `GUIDE_COMPTABLE.md` : validation en attente de la relecture de l'utilisateur, qui enverra ses corrections.
+>   4. ~~`GUIDE_COMPTABLE.md` en attente de relecture~~ — **levée** (2026-10-04) : texte fourni par l'utilisateur intégré. Reste à compléter avant livraison : le repère TEST affiché par le logiciel, le nom du contact et son téléphone/poste (`[…]` dans le guide), et la façon dont le logiciel choisit sa base pour le raccourci « Compta TEST » (`GUIDE_INSTALLATION.md`, §2 bis).
