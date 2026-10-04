@@ -235,3 +235,35 @@ def test_tables_ignorees_absentes_du_diff(base: sqlite3.Connection, source: Sour
     avant = prendre_instantane(source, ["S"])
     base.execute("INSERT INTO S VALUES (1)")
     assert not comparer_instantanes(avant, prendre_instantane(source, ["S"])).changements
+
+
+# --- AMB-037 : clé candidate d'une toute petite table -------------------------------------------
+
+def test_avertissement_cle_candidate_petite_table(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE C (CODE TEXT, DERNIER INTEGER)")
+    base.executemany("INSERT INTO C VALUES (?,?)", [("ACH", 41), ("VTE", 7), ("OD", 3)])
+    d = _diff(base, source, ["UPDATE C SET DERNIER=42 WHERE CODE='ACH'"], {"C": ["DERNIER"]})
+    (a,) = d.avertissements
+    assert (a.table, a.code) == ("C", "cle_candidate_petite_table")
+    assert a.details == {"cle_candidate": ["DERNIER"], "nb_lignes": 3}
+    assert "Table C (3 lignes)" in a.message and "(DERNIER)" in a.message and "À confirmer" in a.message
+    assert diff_module.SEUIL_PETITE_TABLE == 50
+
+
+def test_pas_d_avertissement_des_50_lignes(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE C (CODE INTEGER, V INTEGER)")
+    base.executemany("INSERT INTO C VALUES (?,?)", [(i, 0) for i in range(50)])
+    d = _diff(base, source, ["UPDATE C SET V=1 WHERE CODE=3"], {"C": ["CODE"]})
+    assert d.avertissements == [] and d.changements[0].type_cle == "candidate"
+    base.execute("DELETE FROM C WHERE CODE=49")  # 49 lignes : sous le seuil
+    d = _diff(base, source, ["UPDATE C SET V=2 WHERE CODE=4"], {"C": ["CODE"]})
+    assert [a.code for a in d.avertissements] == ["cle_candidate_petite_table"]
+
+
+def test_pas_d_avertissement_avec_cle_primaire_ou_sans_cle(base: sqlite3.Connection, source: SourceSqlite) -> None:
+    base.execute("CREATE TABLE P (ID INTEGER PRIMARY KEY, V INTEGER)")
+    base.execute("INSERT INTO P VALUES (1, 0)")
+    base.execute("CREATE TABLE M (A TEXT, B INTEGER)")
+    base.execute("INSERT INTO M VALUES ('x', 0)")
+    d = _diff(base, source, ["UPDATE P SET V=1", "UPDATE M SET B=1"], {"P": ["V"]})
+    assert d.avertissements == []

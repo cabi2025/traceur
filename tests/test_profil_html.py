@@ -78,3 +78,20 @@ def test_relations_faibles_listees_mais_non_dessinees(base: sqlite3.Connection) 
     assert "<svg" not in html  # aucune relation à dessiner
     assert "1 relation(s) à confiance faible" in html
     assert "Aucune relation candidate" in html
+
+
+def test_avertissement_petite_table_sans_cle_primaire(base: sqlite3.Connection) -> None:
+    """AMB-037 : une clé candidate sur moins de 50 lignes est signalée comme peu fiable."""
+    base.execute("CREATE TABLE COMPTEURS (CODE TEXT, DERNIER INTEGER)")
+    base.executemany("INSERT INTO COMPTEURS VALUES (?,?)", [("ACH", 3), ("VTE", 5), ("OD", 42)])
+    base.execute("CREATE TABLE GROSSE (A INTEGER, B INTEGER)")
+    base.executemany("INSERT INTO GROSSE VALUES (?,?)", [(i, 0) for i in range(60)])
+    base.execute("CREATE TABLE PETITE_PK (ID INTEGER PRIMARY KEY, V INTEGER)")
+    base.executemany("INSERT INTO PETITE_PK VALUES (?,?)", [(1, 0), (2, 0)])
+    html = generer_html(profiler(SourceSqlite(base), version_jet="Jet 4").vers_dict())
+    assert html.count("cette table a moins de 50 lignes") == 1  # ni GROSSE (60 lignes) ni PETITE_PK (clé primaire)
+    debut = html.index("COMPTEURS <small>")
+    fin = html.find("<h3", debut + 1)
+    bloc = html[debut:] if fin < 0 else html[debut:fin]
+    assert "cette table a moins de 50 lignes" in bloc and "peu fiable" in bloc
+    assert "juste après une réinitialisation" in bloc

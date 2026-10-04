@@ -1,9 +1,12 @@
 import copy
 import re
+import sqlite3
 from html.parser import HTMLParser
-from typing import Any
+from typing import Any, Callable
 
+from conftest import DEBUT, FIN, Scenario
 from traceur.rapports.rapport import SEUIL_REPLIAGE, generer_rapport_html
+from traceur.rapports.trace import Execution, FicheTrace, construire_trace
 
 
 class _Balises(HTMLParser):
@@ -159,3 +162,15 @@ def test_modification_probable_et_cle_deduite() -> None:
     html = generer_rapport_html(trace)
     assert "Modification probable" in html and "à confirmer" in html
     assert "aucune clé" in html and "clé déduite du profil : CODE" in html
+
+
+def test_avertissement_petite_table_dans_trace_et_rapport(base: sqlite3.Connection, jouer: Callable[..., Scenario]) -> None:
+    """AMB-037 : de bout en bout, la clé candidate d'une petite table est signalée (trace.json et rapport.html)."""
+    base.execute("CREATE TABLE COMPTEURS (CODE_JOURNAL TEXT, DERNIER_NUM INTEGER)")
+    base.executemany("INSERT INTO COMPTEURS VALUES (?,?)", [("ACH", 40), ("VTE", 3), ("OD", 42)])
+    s = jouer(["UPDATE COMPTEURS SET DERNIER_NUM=41 WHERE CODE_JOURNAL='ACH'"], avec_profil=True)
+    trace = construire_trace(FicheTrace("S-X", "t", ()), Execution(DEBUT, FIN), "base.mdb", s.diff, s.interpretation, None)
+    (a,) = [a for a in trace["avertissements"] if a["code"] == "cle_candidate_petite_table"]
+    assert (a["table"], a["nb_lignes"], a["cle_candidate"]) == ("COMPTEURS", 3, ["DERNIER_NUM"])
+    html = generer_rapport_html(trace)
+    assert "<h2>Avertissements</h2>" in html and "Table COMPTEURS (3 lignes)" in html and "À confirmer" in html

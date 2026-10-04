@@ -233,7 +233,7 @@ Chaque élément de `changements[]` porte `table` et `cle_utilisee` (`type` : `p
 
 Valeurs : montants en chaîne décimale exacte, dates en ISO 8601, aucun flottant JSON.
 
-Chaque élément de `avertissements[]` porte `table`, `code` (ex. `appariement_plafond_atteint`, `schema_modifie_colonnes_communes`), `message` (français) et des champs propres au code (ex. `lignes_ajoutees_non_appariees`, `lignes_supprimees_non_appariees`, `colonnes_ajoutees`, `colonnes_supprimees`, `types_modifies`).
+Chaque élément de `avertissements[]` porte `table`, `code` (ex. `appariement_plafond_atteint`, `schema_modifie_colonnes_communes`, `cle_candidate_petite_table`), `message` (français) et des champs propres au code (ex. `lignes_ajoutees_non_appariees`, `lignes_supprimees_non_appariees`, `colonnes_ajoutees`, `colonnes_supprimees`, `types_modifies`, `cle_candidate`, `nb_lignes`). `cle_candidate_petite_table` (AMB-037) : le diff d'une table de moins de 50 lignes a utilisé une clé candidate issue du profil, peut-être unique par hasard ; le même seuil déclenche un avertissement dans `profil.html`.
 
 ### 8.2 Statuts
 - `execution.statut` : `terminee` | `annulee` | `ecart_saisie`.

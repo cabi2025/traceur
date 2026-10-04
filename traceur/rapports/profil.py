@@ -9,6 +9,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from traceur.moteur.diff import SEUIL_PETITE_TABLE
 from traceur.moteur.profilage import Profil
 
 _CSS = """
@@ -19,6 +20,7 @@ table{border-collapse:collapse;margin:8px 0 4px;font-size:14px}
 th,td{border:1px solid #bbb;padding:3px 8px;text-align:left}th{background:#e8eef5}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 .cles{font-size:14px;margin:2px 0 14px}.vide{color:#777;font-style:italic}
+.bandeau{border-left:6px solid;padding:8px 12px;margin:6px 0 14px;font-size:14px}.alerte{background:#fff4e0;border-color:#e08a00}
 svg{max-width:100%;height:auto;border:1px solid #ccc;background:#fafafa}
 svg text{font-family:Segoe UI,Arial,sans-serif}
 """
@@ -143,6 +145,11 @@ def generer_html(profil: dict[str, Any]) -> str:
         candidates = " ; ".join("(" + ", ".join(c) + ")" for c in t["cles_candidates"]) or "aucune"
         p.append(f'<div class="cles">Clé primaire : <b>{escape(pk)}</b> · '
                  f"Clés candidates : <b>{escape(candidates)}</b></div>")
+        if not t["cle_primaire"] and t["cles_candidates"] and t["nb_lignes"] < SEUIL_PETITE_TABLE:
+            p.append(f'<div class="bandeau alerte">Attention : cette table a moins de {SEUIL_PETITE_TABLE} lignes. '
+                     "Une clé candidate peut y être unique par hasard (par exemple un compteur dont les valeurs "
+                     "sont toutes différentes à cet instant) : elle est peu fiable. Profilez de préférence juste "
+                     "après une réinitialisation de la base.</div>")
         p.append("<table><tr><th>Colonne</th><th>Type déclaré</th><th>Types observés</th>"
                  "<th>% nuls</th><th>Distincts</th><th>Min</th><th>Max</th></tr>")
         for c in t["colonnes"]:

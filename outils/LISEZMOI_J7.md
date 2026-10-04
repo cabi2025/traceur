@@ -12,7 +12,7 @@ cd C:\Traceur\traceur
 git pull
 python -m pytest -q -rs
 ```
-**Attendu :** `416 passed`, **aucune ligne `SKIPPED`**.
+**Attendu :** `421 passed`, **aucune ligne `SKIPPED`**.
 
 ## 1. Vérifier l'environnement de construction
 ```
@@ -63,7 +63,7 @@ Faites alors le parcours court :
 - **Profiler la base** (toujours *après* une réinitialisation : voir AMB-037) → `profil.html` (dans `C:\TraceurExe\sorties\profil\`).
 - **S-SYN-01** : Choisir → Début → attendre que **Fin** soit actif → dans le terminal A `python outils\simuler_logiciel.py C:\Traceur\test\synthetique.mdb` (une fois) → Fin → remarque libre → **Ouvrir le rapport**.
 
-**Attendu :** « 5 tables modifiées, 3 lignes ajoutées, 2 modifiées, 1 supprimée » ; rapport complet avec les deux captures ; dossier `C:\TraceurExe\sorties\traces\S-SYN-01_…` et `index.html`.
+**Attendu :** « 5 tables modifiées, 3 lignes ajoutées, 2 modifiées, 1 supprimée » ; rapport complet avec les deux captures et, en bas, une section **Avertissements** qui signale que la clé de COMPTEURS (3 lignes) vient du profil et peut être fortuite (AMB-037, c'est normal sur une si petite table) ; dossier `C:\TraceurExe\sorties\traces\S-SYN-01_…` et `index.html`.
 
 Fermez la fenêtre (croix).
 
@@ -106,7 +106,7 @@ python outils\diagnostic.py --config config.json --photo (AMB-002 : durée de ph
 Pour valider le poste du comptable, faites ensuite la fiche **S-000** (`GUIDE_INSTALLATION.md`, section 5).
 
 ## 9. Ce que je vous demande en retour
-1. Le résultat de l'étape 0 (`416 passed`).
+1. Le résultat de l'étape 0 (`421 passed`).
 2. Étape 2 : taille, SHA-256, « 32 bits ».
 3. Étape 4 : capture de la fenêtre ouverte et du rapport.
 4. Étape 5 : le résultat sur un poste propre (ou le test partiel).

@@ -10,6 +10,8 @@ from .instantane import Instantane, Ligne, TableInstantane
 from .normalisation import empreinte_ligne, empreinte_table, normaliser_valeur, valeur_json
 from .source import SchemaTable
 
+SEUIL_PETITE_TABLE = 50  # AMB-037 : sous ce nombre de lignes, une clé candidate du profil est peu fiable
+
 # Nombre maximal de paires ajoutée/supprimée comparées pour `update_probable` (AMB-013).
 LIMITE_APPARIEMENT = 1_000_000
 ECART_MAX_UPDATE_PROBABLE = 2
@@ -295,6 +297,26 @@ def _apparier(
     return ajoutees_restantes, libres
 
 
+def _avertir_petite_table(
+    avant: TableInstantane, apres: TableInstantane, cle: tuple[str, ...], avertissements: list[Avertissement]
+) -> None:
+    """AMB-037 : une clé candidate issue d'une toute petite table peut n'être unique que par hasard."""
+    nb_lignes = max(avant.nb_lignes, apres.nb_lignes)
+    if nb_lignes >= SEUIL_PETITE_TABLE:
+        return
+    colonnes = ", ".join(cle)
+    avertissements.append(
+        Avertissement(
+            apres.nom,
+            "cle_candidate_petite_table",
+            f"Table {apres.nom} ({nb_lignes} lignes) : la clé ({colonnes}) vient du profil et peut être "
+            f"unique par hasard sur une si petite table ; une modification peut apparaître comme une "
+            f"suppression et un ajout. À confirmer.",
+            {"cle_candidate": list(cle), "nb_lignes": nb_lignes},
+        )
+    )
+
+
 def _diff_table(
     avant: TableInstantane,
     apres: TableInstantane,
@@ -309,6 +331,7 @@ def _diff_table(
     elif cle_candidate and set(cle_candidate) <= noms:
         resultat = _diff_avec_cle(avant, apres, "candidate", tuple(cle_candidate))
         if resultat is not None:
+            _avertir_petite_table(avant, apres, tuple(cle_candidate), avertissements)
             return resultat
     return _diff_multiensembles(avant, apres, avertissements)
 

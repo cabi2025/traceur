@@ -124,10 +124,19 @@
 - [x] Script de build PyInstaller `--onefile` **32 bits** (`outils/construire_exe.py`, refuse un Python 64 bits, contrôle l'en-tête PE) — `traceur.exe` à construire sous Windows
 - [x] `GUIDE_COMPTABLE.md` (1 page, langage simple) + `GUIDE_INSTALLATION.md` (config, chemins, partage)
 - [x] Fiche de validation « S-000 » (`docs/formats/fiche_S000.json`, procédure dans `GUIDE_INSTALLATION.md` §5) dans le guide (AMB-027) : une saisie simple ; photo après 3 s puis après 10 s ; si les deux diffs diffèrent, augmenter `delai_stabilisation_s`
-- [ ] Test de l'`.exe` sur un poste Windows sans Python (à dérouler : `outils/LISEZMOI_J7.md`)
+- [~] Test de l'`.exe` sur un poste Windows sans Python : **partiel** (PATH réduit sur le poste de développement ; ni poste propre ni Bac à sable Windows disponibles) — voir réserve 1
 - [x] Bilan (`BILAN_V1.md`) : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
 
 > 2026-10-04 — **Livré, test Windows en attente (J7 reste ouvert jusqu'à vos essais).** Ajouts : section « Antivirus » du guide d'installation, option `--onedir` de `construire_exe.py` en repli, mesure de photo finale à faire depuis le poste du comptable (partage réseau). Décisions AMB-032 à 035 (recommandations) enregistrées. Construction d'essai sous Linux (64 bits) : l'exécutable démarre, trouve Tkinter/Pillow et écrit `journal.log` à côté de lui. Photo du moteur seul : 23,9 s pour 1,2 million de lignes (SQLite en mémoire) ; la mesure Access reste à faire (AMB-002).
 > 2026-10-04 — Essais Windows avec `traceur.exe` (32 bits, 16 733 Ko) : lancement, profilage, S-SYN-01 (5 tables / 3 ajoutées / 2 modifiées / 1 supprimée, clé CODE_JOURNAL après réinitialisation), refus de démarrer, test partiel « sans Python » (PATH réduit ; pas de poste propre ni de Bac à sable Windows disponible). Photo ODBC Access sur base synthétique de 152 506 lignes : 2,93 s. AMB-037 ouverte. Restent : mesures sur la vraie copie depuis le poste du comptable (AMB-001, 002, 028), fiche S-000, relecture des guides.
 
 **Acceptation :** `.exe` lancé sur un poste propre, parcours complet OK, guides relus.
+
+> **2026-10-04 — J7 CLOS AVEC RÉSERVES (décision de l'utilisateur).**
+> - Tests : Python 3.12 + Tk 409 passés / 12 sautés ; Python 3.11 376 passés / 15 sautés ; `mypy --strict traceur/moteur` sans erreur ; sous Windows 421 attendus (409 + 12 Access), aucun sauté.
+> - Fait sous Windows : construction `traceur.exe` 32 bits (16 733 Ko), lancement sans console, journal à côté de l'exe, profilage, S-SYN-01, refus de démarrer (production), test partiel sans Python, photo ODBC de 152 506 lignes en 2,93 s. AMB-032 à 037 closes. `GUIDE_INSTALLATION.md` relu et validé par l'utilisateur.
+> - **Réserves :**
+>   1. **Premier lancement sur un poste réellement propre = le poste du comptable, antivirus actif** (repli `--onedir` et exclusion de dossier : `GUIDE_INSTALLATION.md` §7).
+>   2. **Mesures sur une copie réelle (AMB-001 version Jet, AMB-002 durée de photo, AMB-028 clés primaires) à faire avant la première session**, depuis le poste du comptable, base sur le partage réseau (`outils/LISEZMOI_J7.md`, étape 8).
+>   3. **Fiche S-000 à exécuter avec le comptable** pour valider le délai de stabilisation (`GUIDE_INSTALLATION.md` §5).
+>   4. `GUIDE_COMPTABLE.md` : validation en attente de la relecture de l'utilisateur, qui enverra ses corrections.
