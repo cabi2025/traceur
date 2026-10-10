@@ -111,6 +111,7 @@ La gestion commerciale (GC), du même éditeur, est une base **SQL Server** (`19
 | `mot_de_passe` | non | Mot de passe de la base (déconseillé : retirez-le de la copie de TEST) |
 | `fichier_mdw`, `utilisateur`, `mot_de_passe_mdw` | non | Groupe de travail Access (incompatible avec `mot_de_passe`) |
 | `tables_ignorees` | non | Tables à ignorer en plus de la calibration |
+| `tables_ignorees_analyse` | non | Tables jamais prises comme source d'une « copie » (elles restent comparées). Défaut intégré : `["Table des erreurs", "Erreurs de conversion*"]`. N'ajoutez cette clé que pour changer la liste : elle la remplace ; `[]` la désactive. **Le `config.json` existant reste valide sans cette clé** |
 | `encodage_texte` | non | Défaut `cp1252` |
 | `delai_stabilisation_s` | non | Défaut 3 : attente après « Fin » avant la photo |
 
@@ -170,3 +171,12 @@ python outils\construire_exe.py --verifier
 python outils\construire_exe.py
 ```
 Le script refuse de construire avec un Python 64 bits, produit `dist\traceur.exe` (un seul fichier, sans console), affiche son SHA-256 et contrôle que l'exécutable est bien 32 bits. Si un antivirus bloque le fichier unique, voir la section 7 (`--onedir`). Pour mettre à jour un poste : remplacez `traceur.exe` (ou le dossier en mode `--onedir`) ; `config.json`, le journal, `donnees_locales\` et `traces_locales\` ne bougent pas.
+
+## 9. Réanalyser une trace sans la base (développeur)
+Pour revoir une trace déjà produite avec les règles courantes (sans ouvrir la base ni lancer l'interface) :
+```
+traceur.exe --reanalyser C:\chemin\trace.json
+traceur.exe --reanalyser C:\chemin\trace.json --sortie C:\autre\dossier
+```
+Résultat : `trace_reanalysee.json` et `rapport_reanalyse.html` à côté de la trace (ou dans `--sortie`), plus une boîte de dialogue qui résume les changements (liens, écarts, champs calculés, statut). Le `trace.json` d'origine n'est jamais modifié. Avec Python : `python -m traceur --reanalyser …`. Les hypothèses qui dépendent des photos de la base sont reprises de l'original avec l'avertissement « non recalculable hors ligne ».
+Pour fabriquer un jeu de test à partir d'une trace réelle (montants des cumuls remplacés, poste et chemin effacés) : `python outils\anonymiser_trace.py donnees_reelles\S-201\trace.json tests\data\trace_S201_anonymisee.json`.

@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from traceur.moteur.calcules import TABLES_IGNOREES_ANALYSE_DEFAUT
+
 CLES_OBLIGATOIRES = ("base_test", "instantane_reference", "chemins_interdits", "dossier_sorties")
 # AMB-023 : `fichier_fiches` est optionnel ; `instantane_reference` reste obligatoire.
 MESSAGE_FICHES_INDISPONIBLES = (
@@ -35,6 +37,7 @@ class Configuration:
     utilisateur: str | None = None
     mot_de_passe_mdw: str | None = field(default=None, repr=False)
     tables_ignorees: tuple[str, ...] = ()
+    tables_ignorees_analyse: tuple[str, ...] = TABLES_IGNOREES_ANALYSE_DEFAUT  # AMB-041.2
     encodage_texte: str = "cp1252"
     delai_stabilisation_s: float = 3
 
@@ -95,6 +98,10 @@ def configuration_depuis_dict(donnees: dict[str, Any]) -> Configuration:
         utilisateur=_texte(donnees, "utilisateur"),
         mot_de_passe_mdw=_texte(donnees, "mot_de_passe_mdw"),
         tables_ignorees=_liste(donnees, "tables_ignorees"),
+        tables_ignorees_analyse=(
+            _liste(donnees, "tables_ignorees_analyse")
+            if "tables_ignorees_analyse" in donnees else TABLES_IGNOREES_ANALYSE_DEFAUT
+        ),
         encodage_texte=encodage,
         delai_stabilisation_s=delai,
     )

@@ -43,12 +43,51 @@ def _erreur_fatale(message: str) -> None:
         print(message, file=sys.stderr)
 
 
+def _message_info(message: str) -> None:
+    """Résultat affiché dans une boîte (l'exécutable n'a pas de console) et sur la sortie standard."""
+    print(message)
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+
+        racine = tk.Tk()
+        racine.withdraw()
+        messagebox.showinfo("Traceur", message)
+        racine.destroy()
+    except Exception:  # noqa: BLE001 - pas d'écran : la sortie standard suffit
+        pass
+
+
+def _reanalyser(args: argparse.Namespace) -> int:
+    """`--reanalyser trace.json` : recalcul hors ligne, sans configuration, sans base (AMB-042)."""
+    from traceur.moteur.calcules import TABLES_IGNOREES_ANALYSE_DEFAUT
+    from traceur.reanalyse import ErreurReanalyse, reanalyser_fichier
+
+    motifs: Sequence[str] = TABLES_IGNOREES_ANALYSE_DEFAUT
+    try:
+        if args.config:
+            motifs = charger_configuration(Path(args.config)).tables_ignorees_analyse
+        sortie_json, sortie_html, resume = reanalyser_fichier(
+            Path(args.reanalyser), Path(args.sortie) if args.sortie else None, motifs)
+    except (ErreurReanalyse, ErreurConfiguration) as erreur:
+        _erreur_fatale(str(erreur))
+        return 1
+    _message_info(f"{resume}\n\nÉcrit : {sortie_json}\n          {sortie_html}")
+    return 0
+
+
 def lancer(argv: Sequence[str] | None = None, fabrique: FabriqueSource | None = None, dialogues=None,  # type: ignore[no-untyped-def]
            dossier: Path | None = None, boucle: bool = True):  # type: ignore[no-untyped-def]
     """Démarre l'application. Retourne l'`Application` (boucle=False, pour les tests) ou un code de sortie."""
     parseur = argparse.ArgumentParser(prog="traceur", description="Traceur d'écritures Access.")
     parseur.add_argument("--config", default=None, help="chemin de config.json (défaut : à côté du programme)")
+    parseur.add_argument("--reanalyser", metavar="TRACE_JSON", default=None,
+                         help="recalcule liens, écarts et champs calculés d'un trace.json, sans accès à la base")
+    parseur.add_argument("--sortie", metavar="DOSSIER", default=None,
+                         help="avec --reanalyser : dossier d'écriture (défaut : celui du trace.json)")
     args = parseur.parse_args(argv)
+    if args.reanalyser:
+        return _reanalyser(args)
     dossier = dossier or dossier_application()
     configurer_journal([], dossier)  # journal.log dès le départ (sans secret connu)
     chemin = Path(args.config) if args.config else dossier / "config.json"

@@ -648,7 +648,7 @@ class Controleur:
             cles = cles_candidates_du_profil(self.profil) if self.profil is not None else None
             diff = comparer_instantanes(session.avant, apres, cles, self.tables_bruit)
             interpretation = interpreter(diff, session.avant, apres, session.fiche.valeurs_saisies, session.debut,
-                                         fin_clic, self.profil)
+                                         fin_clic, self.profil, self.config.tables_ignorees_analyse)
             ctx.progression("Écriture du rapport et dépôt…")
             trace = construire_trace(
                 FicheTrace(session.fiche.id, session.fiche.titre, session.fiche.valeurs_saisies),

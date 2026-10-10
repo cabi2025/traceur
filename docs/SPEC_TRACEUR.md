@@ -58,6 +58,7 @@ Voir l'exemple dans `docs/formats/config.example.json`.
 | `fichier_fiches` | non | Fichier JSON des fiches de scénarios. Absent : seuls le profilage et la calibration sont disponibles, les boutons de fiche sont désactivés avec un message |
 | `dossier_sorties` | oui | Dossier de dépôt (local ou partage réseau) |
 | `tables_ignorees` | non | Liste manuelle, ajoutée à la calibration (F3) |
+| `tables_ignorees_analyse` | non | Tables jamais prises comme **source** de l'hypothèse `copie` (§7.2) ; elles restent photographiées et comparées. Motifs avec `*` acceptés, casse ignorée. Défaut dans le code : `Table des erreurs`, `Erreurs de conversion*` (AMB-041.2) |
 | `encodage_texte` | non | Défaut `cp1252` |
 | `delai_stabilisation_s` | non | Défaut 3. Attente après « Fin » avant la photo, pour laisser le logiciel legacy terminer ses propres écritures. Il ne sert pas au cache du pilote (voir §3) |
 
@@ -164,9 +165,10 @@ Sortie : `bruit.json` (format : `docs/formats/bruit.example.json`) avec les tabl
 ### 7.1 Lien saisie → colonne (F6)
 Chaque fiche déclare des **valeurs saisies** typées (§9). Pour chacune, le traceur cherche les correspondances dans les lignes insérées ou modifiées.
 - Correspondance exacte après normalisation de type : montant décimal, date (plusieurs formats : `AAAA-MM-JJ`, `JJ/MM/AAAA`, `JJ-MM-AAAA`, `JJ.MM.AAAA`), texte. Un `code` est comparé comme texte ; un entier égal au code (sans zéro de tête) est exact.
+- **`espaces_fin`** (confiance `haute`, AMB-041.1) : le texte (ou code) de la base ne diffère de la valeur saisie que par des **espaces de fin** (le logiciel complète les textes par des espaces : `'TEST-S201     '`). Seuls les espaces de fin (U+0020) sont supprimés, des deux côtés ; jamais pour un montant. Elle compte comme une correspondance exacte pour écarter les tolérées, et une valeur trouvée ainsi n'est jamais un écart de saisie (§7.4). Les valeurs brutes de `trace.json` ne sont pas modifiées.
 - Correspondances tolérées, chacune signalée avec son type (`signe_inverse`, `x100`, `div100`, `date_heure`, `tronque`, `majuscules`) : signe inversé, montant × 100 ou ÷ 100, date stockée en date-heure, texte tronqué (au moins 3 caractères) ou en majuscules. Elles ne sont cherchées que s'il n'existe **aucune** correspondance exacte pour la valeur. Une date-heure à minuit pile est une correspondance `exacte` ; `date_heure` n'est utilisé que si l'heure est non nulle. Aucune tolérance pour un montant nul ni pour un `code`.
 - Seules les cellules écrites par l'action sont examinées : toutes les colonnes des lignes insérées, et uniquement les champs modifiés des lignes modifiées.
-- `confiance` : `haute` (exacte, date_heure), `moyenne` (signe_inverse, majuscules, tronque), `faible` (x100, div100).
+- `confiance` : `haute` (exacte, espaces_fin, date_heure), `moyenne` (signe_inverse, majuscules, tronque), `faible` (x100, div100).
 
 Le lien se fait **par valeur** : chaque lien porte la valeur saisie concernée (deux saisies d'un même champ d'écran donnent deux liens distincts). **Aucun lien automatique** n'est fait en V1 entre le texte libre des remarques (messages affichés) et les valeurs en base.
 
@@ -181,12 +183,13 @@ Tout champ d'une ligne insérée ou modifiée **non expliqué par F6** est un ch
 
 | Hypothèse | Test |
 |---|---|
-| `compteur` | Vaut max(colonne avant) + 1, ou + pas constant (pas déduit des écarts constants des valeurs d'avant ; pour plusieurs lignes insérées, max + 1, + 2, …). Pour une ligne modifiée : valeur avant + 1, ou + un delta identique sur au moins 2 lignes modifiées. Pour un texte : préfixe éventuel + suffixe numérique incrémenté, largeur conservée (ex. `0041` → `0042`, `ACH-0041` → `ACH-0042`) ; un texte entièrement numérique est le cas sans préfixe |
+| `compteur` | **Réservé aux colonnes entières et aux codes texte numériques — jamais à une colonne monétaire (CURRENCY/DECIMAL), flottante ou à un montant écrit en texte** (AMB-041.3). Vaut max(colonne avant) + 1, ou + pas constant (pas déduit des écarts constants des valeurs d'avant ; pour plusieurs lignes insérées, max + 1, + 2, …). Pour une ligne modifiée : valeur avant + 1, ou + un delta identique sur au moins 2 lignes modifiées. Pour un texte : préfixe éventuel + suffixe numérique incrémenté, largeur conservée (ex. `0041` → `0042`, `ACH-0041` → `ACH-0042`) ; un texte entièrement numérique est le cas sans préfixe |
 | `horodatage_systeme` | Date ou heure comprise dans l'intervalle [Début − 2 min, Fin + 2 min] (marge d'écart d'horloge entre le poste et le serveur) |
 | `somme_lignes` | Égale à la somme d'une colonne numérique des lignes liées insérées dans le même diff |
-| `copie` | Égale à une valeur d'une autre table, lue dans la photo avant via une relation candidate |
+| `copie` | Égale à une valeur d'une autre table, lue dans la photo avant via une relation candidate. **Exclus** (AMB-041.2) : les valeurs triviales (nulle, `0`, `0.0000`, chaîne vide ou blanche) et les tables listées dans `tables_ignorees_analyse` |
 | `constante` | Toujours la même valeur sur toute la table (voir profil) |
 | `cumul_mis_a_jour` | Delta du champ égal à un montant saisi ou à son opposé |
+| `cumul_hierarchique` | Tables `compte` et `scompte` (AMB-041.4, règle R-003 de `docs/CARTE_ECRANS.md`) : même delta, sur la même colonne (et le même mois pour `scompte`), pour un compte et pour au moins un de ses comptes parents ou enfants — préfixes d'**au moins 2 caractères** (jamais le niveau classe), comparés sans espaces de fin. Une insertion compte pour un delta égal à sa valeur |
 | `inconnu` | Aucune hypothèse ne tient |
 
 Les relations candidates de confiance `faible` sont exclues de `somme_lignes` et de `copie`.
@@ -194,6 +197,9 @@ Les relations candidates de confiance `faible` sont exclues de `somme_lignes` et
 **Profil absent :** si aucun profil n'est disponible, les hypothèses qui en dépendent (`somme_lignes` et `copie`, qui utilisent les relations candidates, et `constante`) sont désactivées et un avertissement est inscrit dans le rapport (`avertissements[]`).
 
 Chaque hypothèse est **marquée comme hypothèse**, pas comme règle. La confirmation se fait plus tard, côté analyse.
+
+### 7.5 Réanalyse hors ligne (AMB-042)
+`traceur.exe --reanalyser <trace.json> [--sortie <dossier>] [--config <config.json>]` recalcule `liens`, `ecarts_saisie` et `champs_calcules` d'une trace existante avec les règles courantes, **sans accès à la base** (ni configuration obligatoire, ni pyodbc). Le résultat est écrit dans `trace_reanalysee.json` et `rapport_reanalyse.html` (par défaut à côté du `trace.json`, qui n'est jamais modifié). Les hypothèses qui exigent les photos (`compteur` d'une insertion, `copie`, `constante`, `somme_lignes`) sont **reprises de l'original**, filtrées par les règles courantes, avec l'avertissement `non_recalculable_hors_ligne` (« non recalculable hors ligne »). Les types de `trace.json` étant perdus à l'écriture, une chaîne `x.xxxx` est relue comme un montant et une chaîne ISO comme une date.
 
 ### 7.3 Pas d'inférence inventée
 Aucune autre heuristique ne doit être ajoutée sans passer par `SUIVI_AMBIGUITES.md`.

@@ -65,6 +65,7 @@ def jouer(base: sqlite3.Connection, source: SourceSqlite) -> Callable[..., Scena
         saisies: Sequence[ValeurSaisie] = (),
         avec_profil: bool = False,
         tables_bruit: Sequence[str] = (),
+        tables_ignorees_analyse: Sequence[str] | None = None,
     ) -> Scenario:
         profil = profiler(source) if avec_profil else None
         avant = prendre_instantane(source)
@@ -73,7 +74,9 @@ def jouer(base: sqlite3.Connection, source: SourceSqlite) -> Callable[..., Scena
         apres = prendre_instantane(source)
         cles = cles_candidates_du_profil(profil) if profil is not None else None
         diff = comparer_instantanes(avant, apres, cles, tables_bruit)
-        return Scenario(diff, interpreter(diff, avant, apres, saisies, DEBUT, FIN, profil), avant, apres)
+        extra: dict[str, Any] = {} if tables_ignorees_analyse is None else {
+            "tables_ignorees_analyse": tables_ignorees_analyse}
+        return Scenario(diff, interpreter(diff, avant, apres, saisies, DEBUT, FIN, profil, **extra), avant, apres)
 
     return _jouer
 

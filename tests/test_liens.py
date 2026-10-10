@@ -33,6 +33,10 @@ Jouer = Callable[..., Scenario]
         ("TEXT", "6111", "code", "6111", ("exacte", "haute")),
         ("INTEGER", 6111, "code", "6111", ("exacte", "haute")),
         ("TEXT", "ACH", "code", "ACH", ("exacte", "haute")),
+        # AMB-041.1 : textes complétés par des espaces dans la base
+        ("TEXT", "TEST-S201     ", "texte", "TEST-S201", ("espaces_fin", "haute")),
+        ("TEXT", "61263    ", "code", "61263", ("espaces_fin", "haute")),
+        ("TEXT", "TEST-S201", "texte", "TEST-S201   ", ("espaces_fin", "haute")),
     ],
 )
 def test_un_cas_par_type_de_correspondance(
@@ -51,7 +55,9 @@ def test_un_cas_par_type_de_correspondance(
     ("declare", "stocke", "type_", "valeur"),
     [
         ("TEXT", "TE", "texte", "TEST-S003"),  # tronqué trop court (< 3)
-        ("TEXT", "TEST-S003 ", "texte", "TEST-S003"),  # l'espace final est une donnée
+        ("TEXT", " TEST-S003", "texte", "TEST-S003"),  # espace en tête : une donnée (AMB-041.1)
+        ("TEXT", "\tTEST-S003", "texte", "TEST-S003"),  # seuls les espaces de fin sont supprimés
+        ("TEXT", "TEST-S003\t", "texte", "TEST-S003"),  # tabulation finale : pas un espace
         ("INTEGER", 42, "code", "0042"),  # zéro de tête
         ("DECIMAL(12,2)", "5", "montant", "0"),  # aucune tolérance pour 0 (et 5 ≠ 0)
         ("TEXT", "1234.56", "montant", "1234.56"),  # montant stocké en texte : refusé
@@ -206,3 +212,52 @@ def test_deux_transpositions_ne_sont_pas_un_ecart(base: sqlite3.Connection, joue
     s = jouer(["INSERT INTO LIGNES VALUES (1, '1324.65')", "INSERT INTO LIGNES VALUES (1, '246.91')"],
               [saisie("Débit", "1234.56"), saisie("Débit", "246.91")])
     assert [e.type_ecart for e in s.interpretation.ecarts_saisie] == ["introuvable"]
+
+
+# --- AMB-041.1 : espaces_fin ---------------------------------------------------------------------
+
+def test_espaces_fin_compte_comme_exacte_pour_ecarter_les_tolerees(
+    base: sqlite3.Connection, jouer: Jouer
+) -> None:
+    base.execute("CREATE TABLE T (ID INTEGER PRIMARY KEY, A TEXT, B TEXT)")
+    s = jouer(["INSERT INTO T VALUES (1, '61263    ', '61263')"], [saisie("Compte", "61263", "code")])
+    assert sorted((x.colonne, x.type_correspondance) for x in s.interpretation.liens) \
+        == [("A", "espaces_fin"), ("B", "exacte")]
+    assert not s.interpretation.ecarts_saisie
+    assert not [c for c in s.interpretation.champs_calcules if c.colonne == "A"]
+
+
+def test_espaces_fin_pas_d_ecart_de_saisie(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE T (ID INTEGER PRIMARY KEY, DOC TEXT, LIB TEXT)")
+    s = jouer(
+        ["INSERT INTO T VALUES (1, 'TEST-S201     ', 'TEST-S201                               ')"],
+        [saisie("Document", "TEST-S201", "texte"), saisie("Libellé", "TEST-S201", "texte")],
+    )
+    assert s.interpretation.ecarts_saisie == []
+    assert {(x.champ_ecran, x.type_correspondance) for x in s.interpretation.liens} \
+        == {("Document", "espaces_fin"), ("Libellé", "espaces_fin")}
+
+
+def test_espaces_fin_valeur_brute_inchangee(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE T (ID INTEGER PRIMARY KEY, DOC TEXT)")
+    s = jouer(["INSERT INTO T VALUES (1, 'TEST-S201     ')"], [saisie("Document", "TEST-S201", "texte")])
+    ins = s.diff.changements[0].inserts[0]
+    assert ins.valeurs["DOC"] == "TEST-S201     "
+    assert s.interpretation.liens[0].valeur == "TEST-S201"
+
+
+def test_ecart_toujours_detecte_avec_espaces_fin(base: sqlite3.Connection, jouer: Jouer) -> None:
+    """Une vraie différence reste un écart ; les espaces de fin ne comptent pas dans la distance."""
+    base.execute("CREATE TABLE T (ID INTEGER PRIMARY KEY, LIB TEXT)")
+    s = jouer(
+        ["INSERT INTO T VALUES (1, 'ALPHA-001   ')", "INSERT INTO T VALUES (2, 'ALPHA-0O2   ')"],
+        [saisie("Libellé", "ALPHA-001", "texte"), saisie("Libellé", "ALPHA-002", "texte")],
+    )
+    assert [(e.type_ecart, e.colonne, e.valeur_trouvee) for e in s.interpretation.ecarts_saisie] \
+        == [("valeur_differente", "LIB", "ALPHA-0O2   ")]
+
+
+def test_espaces_fin_jamais_pour_un_montant(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE T (ID INTEGER PRIMARY KEY, M TEXT)")
+    s = jouer(["INSERT INTO T VALUES (1, '1234.56  ')"], [saisie("Débit", "1234.56")])
+    assert not s.interpretation.liens

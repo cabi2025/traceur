@@ -24,11 +24,13 @@ CORRESPONDANCES = {
     "exacte": "valeur identique", "signe_inverse": "signe inversé", "x100": "multipliée par 100",
     "div100": "divisée par 100", "date_heure": "date avec une heure", "tronque": "texte tronqué",
     "majuscules": "texte en majuscules",
+    "espaces_fin": "texte avec espaces en fin",
 }
 HYPOTHESES = {
     "compteur": "compteur (numéro qui augmente)", "horodatage_systeme": "date ou heure du système",
     "somme_lignes": "somme de lignes liées", "copie": "copie d'une valeur d'une autre table",
-    "constante": "valeur constante", "cumul_mis_a_jour": "cumul mis à jour", "inconnu": "origine inconnue",
+    "constante": "valeur constante", "cumul_mis_a_jour": "cumul mis à jour",
+    "cumul_hierarchique": "cumul sur le compte et ses comptes parents", "inconnu": "origine inconnue",
 }
 SEUIL_REPLIAGE = 30  # au-delà de ce nombre de lignes, le détail d'une table est replié
 

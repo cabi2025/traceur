@@ -438,7 +438,7 @@
 ## Ambiguïtés issues de la première trace réelle (S-201)
 
 ### AMB-041 — Retour de la première trace réelle (S-201) : 3 corrections de F6/F7 + 1 hypothèse facultative
-- **Statut :** OUVERTE (non bloquante : rien n'est codé tant que l'utilisateur n'a pas tranché)
+- **Statut :** CLOSE (2026-10-10) — implémentée
 - **Jalon / SPEC :** J3 / §7.1 (F6), §7.2 (F7), §7.3, §7.4
 - **Source :** `donnees_reelles/S-201/trace.json` ; règles confirmées dans `docs/CARTE_ECRANS.md` §16 (R-001 à R-005) ; limite déjà notée au §15 (« textes complétés par des espaces ») (fiche S-201, facture d'achat avec TVA, 5 tables modifiées, 14 liens, 79 champs calculés, 2 écarts de saisie).
 - **Contexte général :** la SPEC est muette sur ces cas. Le §7.3 interdit toute heuristique non passée par ce registre ; les points 1 à 3 modifient des règles de F6/F7, le point 4 en ajoute une.
@@ -495,12 +495,22 @@
 
 - **Constats hors périmètre (aucune décision demandée) :** `ecrit.lien_tva = 26603` reste `inconnu` (il vaut le `Compteur` de la ligne 2 — une copie intra-table, pas prévue par F7) ; `ecrit.Contre_partie = 2` et `sjournal.Piece` idem. À reprendre si l'utilisateur le souhaite via un autre AMB.
 - **Ordre de mise en œuvre recommandé :** 1 → 3 → 2 → (4). Le point 1 conditionne le point 4 (préfixes sur clés `rstrip`).
-- **Code concerné :** `traceur/moteur/liens.py` (point 1), `traceur/moteur/interpretation.py` (écarts, point 1), `traceur/moteur/calcules.py` (`_copie`, `_compteur`, `_cumul` : points 2 à 4), `traceur/config.py` + §3 de `GUIDE_INSTALLATION.md` (clé `tables_ignorees_analyse`). Aucun `TODO(AMB-041)` posé : rien n'est codé avant décision.
-- **Décision utilisateur :** _(vide : à indiquer par point — 1, 2, 3 : option retenue ; 4 : oui/non)_
-- **Date de clôture :**
+- **Code concerné :** `traceur/moteur/liens.py` (point 1), `traceur/moteur/interpretation.py` (écarts, point 1), `traceur/moteur/calcules.py` (`_copie`, `_compteur`, `_cumul` : points 2 à 4), `traceur/config.py` + §3 de `GUIDE_INSTALLATION.md` (clé `tables_ignorees_analyse`). Implémenté ; SPEC §7.1, §7.2, §4 et `GUIDE_INSTALLATION.md` §3 mis à jour.
+- **Décision utilisateur (2026-10-10, recopiée) :**
+  - **041.1** `espaces_fin` : suppression des espaces de **fin uniquement**, confiance haute, appliquée aux liens (F6) **et** aux écarts de saisie (§7.4) ; valeurs brutes inchangées dans trace.json. CLOSE.
+  - **041.2** bruit de `copie` : exclusion des valeurs triviales (0, vide, blanc) et des tables `Table des erreurs`, `Erreurs de conversion*` ; clé facultative `tables_ignorees_analyse` avec ce défaut dans le code. CLOSE.
+  - **041.3** `compteur` : réservé aux entiers et aux codes texte numériques, jamais aux colonnes CURRENCY/montant. CLOSE.
+  - **041.4** `cumul_hierarchique` : OUI (compte + scompte, parents d'au moins 2 caractères présents dans la table, jamais le niveau classe). CLOSE.
+- **Précisions d'implémentation (non contestées, à confirmer au besoin) :**
+  1. `espaces_fin` compte comme `exacte` pour écarter les correspondances tolérées (sinon `ecrit.Compte = '61263    '` restait « inconnu » à côté de `scompte.Compte = '61263'`).
+  2. Sous-question du point 1 : `TVA/TEST-S201…` (saisie contenue dans un texte plus long) reste `inconnu` — aucune correspondance « contient » en V1.
+  3. `compteur` : les codes texte à préfixe (`ACH-0041`, validés par AMB-022) restent éligibles ; sont exclus les `Decimal`, flottants et montants écrits en texte (`x.xx`). `ecrit.Piece = '990201'` (code texte numérique) reste éligible.
+  4. `cumul_hierarchique` : le parent doit lui-même avoir reçu le même delta dans la trace (il existe donc dans la table) ; `scompte` est regroupé par `Mois` ; une insertion compte pour un delta égal à sa valeur ; les colonnes `Compte` et `Mois` sont codées en dur pour `compte`/`scompte` (constantes de `calcules.py`).
+  5. Un motif de `tables_ignorees_analyse` fourni dans `config.json` **remplace** le défaut (`[]` le désactive).
+- **Date de clôture :** 2026-10-10
 
 ### AMB-042 — Outil de réanalyse hors ligne d'un `trace.json` (hors SPEC actuelle)
-- **Statut :** OUVERTE (non bloquante)
+- **Statut :** CLOSE (2026-10-10) — implémentée
 - **Jalon / SPEC :** J3 / §7, §8 ; CLAUDE.md règle 3 (pas de fonctionnalité hors périmètre)
 - **Contexte :** le PC de développement n'a accès ni au serveur ni au poste PC03 ; seules des traces rapatriées à la main (`donnees_reelles/<fiche>/trace.json`) sont disponibles. Pour valider les correctifs d'AMB-041 il faut recalculer `liens`, `champs_calcules` et `ecarts_saisie` **sans accès à la base**. La SPEC ne prévoit aucun tel outil.
 - **Limite technique à connaître :** F7 `compteur` et `copie` s'appuient sur la photo avant (max avant, tables sources) ; or `trace.json` ne contient que les changements. Des champs de `trace.json` (`details`, `avant`/`apres`) suffisent pour `cumul_*` et `constante`, pas toujours pour `copie` (la source n'y figure que dans `details`).
@@ -510,5 +520,13 @@
   3. Rien : valider uniquement sur PC03. Rejeté (aucun accès d'ici).
 - **Recommandation :** option 1, car le même module sert au test de non-régression d'AMB-041 (rejouer S-201 ⇒ aucun écart) et à toutes les traces futures. Les traces réelles restent dans `donnees_reelles/` (ignoré par git).
 - **Tests :** `trace.json` S-201 → `ecarts_saisie == []` ; entrée inchangée octet pour octet ; sortie déterministe ; `format_version` inconnue ⇒ refus clair ; fichier sans `valeurs_saisies` ⇒ avertissement ; aucun import de `pyodbc` sur ce chemin (testable sans Access).
-- **Décision utilisateur :** _(à indiquer)_
-- **Date de clôture :**
+- **Décision utilisateur (2026-10-10, recopiée) :** OUI à `traceur.exe --reanalyser <trace.json>` ; les hypothèses `copie`/`compteur` non recalculables hors ligne sont reprises de l'original, filtrées par les nouvelles règles, avec l'avertissement « non recalculable hors ligne ». CLOSE.
+- **Implémentation :** `traceur/reanalyse.py`, option `--reanalyser` (+ `--sortie`, `--config` facultatifs) de `traceur/__main__.py` ; SPEC §7.5, `GUIDE_INSTALLATION.md` §9. Sont aussi reprises de l'original `constante` et `somme_lignes` (elles exigent le profil). Jeu de test anonymisé : `tests/data/trace_S201_anonymisee.json` (`outils/anonymiser_trace.py`).
+- **Date de clôture :** 2026-10-10
+
+### AMB-043 — Build de `traceur.exe` (32 bits) depuis cet environnement
+- **Statut :** CLOSE (2026-10-10) — abandon
+- **Jalon / SPEC :** J7 / §3
+- **Contexte :** l'environnement de la session est Linux ; PyInstaller ne compile pas pour Windows 32 bits.
+- **Décision utilisateur (2026-10-10, recopiée) :** abandon validé ; build local avec `outils/construire_exe.py` (`GUIDE_INSTALLATION.md` §8). CLOSE.
+- **Date de clôture :** 2026-10-10

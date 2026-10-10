@@ -16,10 +16,13 @@ TYPES_SAISIE = ("montant", "date", "texte", "code")
 FORMATS_DATE = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y")
 LONGUEUR_MIN_TRONQUE = 3  # AMB-020 (validée)
 LONGUEUR_MIN_ECART_TEXTE = 4  # AMB-021
+# Correspondances qui comptent comme « exactes » pour écarter les tolérées (AMB-020, AMB-041.1).
+TYPES_EXACTS = ("exacte", "espaces_fin")
 
 # AMB-019 (validée) : échelle de confiance.
 CONFIANCE = {
     "exacte": "haute",
+    "espaces_fin": "haute",  # AMB-041.1 : texte complété par des espaces dans la base
     "date_heure": "haute",
     "signe_inverse": "moyenne",
     "majuscules": "moyenne",
@@ -108,6 +111,11 @@ def analyser_date(texte: str) -> date | None:
     return None
 
 
+def sans_espaces_fin(texte: str) -> str:
+    """Texte sans ses espaces de fin (U+0020 uniquement ; AMB-041.1). Jamais appliqué aux montants."""
+    return texte.rstrip(" ")
+
+
 def nombre(valeur: Any) -> Decimal | None:
     """Valeur numérique d'une cellule (entier, Decimal, flottant) ; None sinon."""
     if isinstance(valeur, bool):
@@ -167,12 +175,17 @@ def _comparer(attendu: _Attendu, valeur: Any) -> str | None:
         if cellule is not None and cellule == cellule.to_integral_value():
             return "exacte" if str(int(cellule)) == attendu.texte else None
         if isinstance(valeur, str):
-            return "exacte" if unicodedata.normalize("NFC", valeur) == attendu.texte else None
+            texte = unicodedata.normalize("NFC", valeur)
+            if texte == attendu.texte:
+                return "exacte"
+            return "espaces_fin" if sans_espaces_fin(texte) == sans_espaces_fin(attendu.texte) else None
         return None
     if attendu.type == "texte" and isinstance(valeur, str):
         texte = unicodedata.normalize("NFC", valeur)
         if texte == attendu.texte:
             return "exacte"
+        if sans_espaces_fin(texte) == sans_espaces_fin(attendu.texte):
+            return "espaces_fin"
         if texte == attendu.texte.upper():
             return "majuscules"
         if LONGUEUR_MIN_TRONQUE <= len(texte) < len(attendu.texte) and attendu.texte.startswith(texte):
@@ -191,7 +204,7 @@ def _forme_normalisee(attendu: _Attendu, valeur: Any) -> str | None:
         jour = analyser_date(valeur) if isinstance(valeur, str) else None
         return None if jour is None else jour.isoformat()
     if isinstance(valeur, str):
-        return unicodedata.normalize("NFC", valeur)
+        return sans_espaces_fin(unicodedata.normalize("NFC", valeur))
     nb = nombre(valeur)
     return None if nb is None else str(int(nb)) if nb == nb.to_integral_value() else None
 
@@ -201,7 +214,7 @@ def _attendu_normalise(attendu: _Attendu) -> str:
         return format(attendu.montant.normalize(), "f")
     if attendu.jour is not None:
         return attendu.jour.isoformat()
-    return attendu.texte
+    return sans_espaces_fin(attendu.texte)
 
 
 def distance(a: str, b: str) -> int:
@@ -253,7 +266,7 @@ def chercher_liens(
             )
             continue
         trouvees = [(c, t) for c in cellules if (t := _comparer(attendu, c.valeur)) is not None]
-        exactes = [(c, t) for c, t in trouvees if t == "exacte"]
+        exactes = [(c, t) for c, t in trouvees if t in TYPES_EXACTS]
         retenues = exactes or trouvees
         if not retenues:
             sans_lien.append((saisie, attendu))

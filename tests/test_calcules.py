@@ -290,3 +290,205 @@ def test_forme_conforme_a_l_exemple(base: sqlite3.Connection, jouer: Jouer) -> N
     json.dumps(d)
     assert Decimal("1234.56")  # montants en chaîne dans la trace
     assert all(isinstance(x["valeur"], str) for x in d["liens"])
+
+
+# --- AMB-041.2 : bruit de `copie` ------------------------------------------------------------------
+
+def _base_copie_triviale(base: sqlite3.Connection) -> None:
+    base.execute("CREATE TABLE CLIENTS (ID INTEGER PRIMARY KEY, SOLDE DECIMAL(12,2), NOTE TEXT, NB INTEGER)")
+    base.execute("CREATE TABLE FACTURES (NUM INTEGER PRIMARY KEY, CLIENT_ID INTEGER, SOLDE DECIMAL(12,2), "
+                 "NOTE TEXT, NB INTEGER, REF TEXT)")
+    base.execute("ALTER TABLE CLIENTS ADD COLUMN REF TEXT")
+    for i in range(101, 106):
+        base.execute("INSERT INTO CLIENTS VALUES (?, '0.00', '   ', 0, ?)", (i, f"R{i}"))
+        base.execute("INSERT INTO FACTURES (CLIENT_ID, SOLDE, NOTE, NB, REF) VALUES (?, '0.00', '   ', 0, ?)",
+                     (i, f"R{i}"))
+
+
+def test_copie_exclut_les_valeurs_triviales(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_copie_triviale(base)
+    s = jouer(["INSERT INTO FACTURES (CLIENT_ID, SOLDE, NOTE, NB, REF) VALUES (103, '0.00', '   ', 0, 'R103')"],
+              avec_profil=True)
+    for colonne in ("SOLDE", "NOTE", "NB"):
+        for c in (x for x in s.interpretation.champs_calcules if x.colonne == colonne):
+            assert "copie" not in c.hypotheses, (colonne, c)
+    # une valeur non triviale reste détectée
+    assert _champ(s, "FACTURES", "REF").hypotheses == ("copie",)
+
+
+def test_copie_non_triviale_numerique_encore_detectee(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_copie_triviale(base)
+    base.execute("UPDATE CLIENTS SET SOLDE = '12.50' WHERE ID = 103")
+    s = jouer(["INSERT INTO FACTURES (CLIENT_ID, SOLDE, NOTE, NB, REF) VALUES (103, '12.50', 'x', 7, 'R103')"],
+              avec_profil=True)
+    assert "copie" in _champ(s, "FACTURES", "SOLDE", Decimal("12.50")).hypotheses
+
+
+def _base_tables_parasites(base: sqlite3.Connection) -> None:
+    base.execute('CREATE TABLE "Table des erreurs" (ID INTEGER PRIMARY KEY, CODE TEXT)')
+    base.execute('CREATE TABLE "Erreurs de conversion (1)" (ID INTEGER PRIMARY KEY, CODE TEXT)')
+    base.execute("CREATE TABLE FACTURES (NUM INTEGER PRIMARY KEY, CLIENT_ID INTEGER, CODE TEXT)")
+    for i in range(101, 106):
+        base.execute('INSERT INTO "Table des erreurs" VALUES (?, ?)', (i, f"ERR{i}"))
+        base.execute('INSERT INTO "Erreurs de conversion (1)" VALUES (?, ?)', (i, f"ERR{i}"))
+        base.execute("INSERT INTO FACTURES (CLIENT_ID, CODE) VALUES (?, ?)", (i, f"ERR{i}"))
+
+
+ACTION_PARASITE = ["INSERT INTO FACTURES (CLIENT_ID, CODE) VALUES (103, 'ERR103')"]
+
+
+def test_copie_ignore_les_tables_parasites_par_defaut(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_tables_parasites(base)
+    s = jouer(ACTION_PARASITE, avec_profil=True)
+    for c in s.interpretation.champs_calcules:
+        assert "Table des erreurs" not in c.details and "Erreurs de conversion" not in c.details, c
+
+
+def test_copie_tables_ignorees_analyse_vide_les_reactive(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_tables_parasites(base)
+    s = jouer(ACTION_PARASITE, avec_profil=True, tables_ignorees_analyse=())
+    assert any("copie" in c.hypotheses and ("Table des erreurs" in c.details or "Erreurs de conversion" in c.details)
+               for c in s.interpretation.champs_calcules)
+
+
+def test_copie_motif_personnalise_et_casse_ignoree(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_tables_parasites(base)
+    s = jouer(ACTION_PARASITE, avec_profil=True, tables_ignorees_analyse=("table DES erreurs", "erreurs de conv*"))
+    assert not any("erreurs" in c.details.casefold() for c in s.interpretation.champs_calcules)
+
+
+def test_table_ignoree_pour_analyse() -> None:
+    from traceur.moteur.calcules import est_valeur_triviale, table_ignoree_pour_analyse
+
+    motifs = ("Table des erreurs", "Erreurs de conversion*")
+    assert table_ignoree_pour_analyse("Table des erreurs", motifs)
+    assert table_ignoree_pour_analyse("Erreurs de conversion (2)", motifs)
+    assert not table_ignoree_pour_analyse("Table des erreurs2", motifs)
+    assert not table_ignoree_pour_analyse("ecrit", motifs)
+    for v in (None, 0, 0.0, Decimal("0.0000"), "", "   ", " "):
+        assert est_valeur_triviale(v), v
+    for v in (1, Decimal("0.01"), "0", "A"):
+        assert not est_valeur_triviale(v), v
+
+
+# --- AMB-041.3 : compteur réservé aux entiers et aux codes texte numériques -------------------------
+
+def test_compteur_jamais_sur_une_colonne_montant(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE M (V DECIMAL(12,2))")
+    base.executemany("INSERT INTO M VALUES (?)", [("1.00",), ("2.00",), ("3.00",)])
+    s = jouer(["INSERT INTO M VALUES ('4.00')"])
+    assert _champ(s, "M", "V").hypotheses == ("inconnu",)
+
+
+def test_compteur_jamais_sur_un_cumul_decimal(base: sqlite3.Connection, jouer: Jouer) -> None:
+    """Cas réel S-201 : compte.Credit 39650045.36 → 39651526.83 n'est pas un compteur."""
+    base.execute("CREATE TABLE compte (Compte TEXT PRIMARY KEY, Credit DECIMAL(15,4))")
+    base.executemany("INSERT INTO compte VALUES (?, ?)", [("44", "39650045.3600"), ("441", "26834581.7100")])
+    s = jouer(["UPDATE compte SET Credit = ROUND(Credit + 1481.47, 2)"], [saisie("Crédit", "1481.47")])
+    for c in s.interpretation.champs_calcules:
+        assert "compteur" not in c.hypotheses, c
+    assert all(c.hypotheses == ("cumul_mis_a_jour", "cumul_hierarchique") for c in s.interpretation.champs_calcules)
+
+
+def test_compteur_jamais_sur_un_montant_ecrit_en_texte(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE M (V TEXT)")
+    base.executemany("INSERT INTO M VALUES (?)", [("1.00",), ("2.00",), ("3.00",)])
+    assert _champ(jouer(["INSERT INTO M VALUES ('4.00')"]), "M", "V").hypotheses == ("inconnu",)
+
+
+def test_compteur_jamais_sur_un_flottant(base: sqlite3.Connection, jouer: Jouer) -> None:
+    base.execute("CREATE TABLE F (V REAL)")
+    base.executemany("INSERT INTO F VALUES (?)", [(1.0,), (2.0,), (3.0,)])
+    assert _champ(jouer(["INSERT INTO F VALUES (4.0)"]), "F", "V").hypotheses == ("inconnu",)
+
+
+def test_compteur_code_texte_numerique_reste_eligible(base: sqlite3.Connection, jouer: Jouer) -> None:
+    """`ecrit.Piece` (texte « 990201 ») reste éligible : les codes texte numériques sont conservés."""
+    base.execute("CREATE TABLE ECR (ID INTEGER PRIMARY KEY, PIECE TEXT)")
+    base.executemany("INSERT INTO ECR (PIECE) VALUES (?)", [("990199",), ("990200",)])
+    c = _champ(jouer(["INSERT INTO ECR (PIECE) VALUES ('990201')"]), "ECR", "PIECE")
+    assert (c.hypotheses, c.details) == (("compteur",), "max avant = 990200")
+
+
+# --- AMB-041.4 : cumul_hierarchique --------------------------------------------------------------------
+
+def _base_comptes(base: sqlite3.Connection) -> None:
+    base.execute("CREATE TABLE compte (Compte TEXT PRIMARY KEY, Debit DECIMAL(15,4), Credit DECIMAL(15,4))")
+    base.execute("CREATE TABLE scompte (Compte TEXT, Mois TEXT, Debit DECIMAL(15,4), Credit DECIMAL(15,4), "
+                 "PRIMARY KEY (Compte, Mois))")
+    for compte in ("6", "61", "612", "6126", "61263    ", "34", "345", "3455", "34552    ",
+                   "44", "441", "4411", "44111", "441110024", "71", "72"):
+        base.execute("INSERT INTO compte VALUES (?, '1000.0000', '2000.0000')", (compte,))
+
+
+ACTION_FACTURE = [
+    "UPDATE compte SET Debit = ROUND(Debit + 1234.56, 2) WHERE Compte IN ('61', '612', '6126', '61263    ')",
+    "UPDATE compte SET Debit = ROUND(Debit + 246.91, 2) WHERE Compte IN ('34', '345', '3455', '34552    ')",
+    "UPDATE compte SET Credit = ROUND(Credit + 1481.47, 2) WHERE Compte IN ('44', '441', '4411', '44111', '441110024')",
+]
+SAISIES_FACTURE_CUMUL = [saisie("Débit ou HT", "1234.56"), saisie("Crédit", "1481.47")]
+
+
+def test_cumul_hierarchique_trois_chaines(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_comptes(base)
+    s = jouer(ACTION_FACTURE, SAISIES_FACTURE_CUMUL)
+    par_valeur = {(c.colonne, Decimal(str(c.valeur))): c for c in s.interpretation.champs_calcules}
+    # 61263, 6126, 612, 61 : cumul d'un montant saisi ET cumul sur la chaîne de préfixes
+    c = par_valeur[("Debit", Decimal("2234.56"))]
+    assert c.hypotheses == ("cumul_mis_a_jour", "cumul_hierarchique")
+    assert "61, 612, 6126, 61263" in c.details
+    # 34552 et ses parents : le delta 246,91 (TVA) n'est pas un montant saisi → hiérarchique seul
+    tva = par_valeur[("Debit", Decimal("1246.91"))]
+    assert tva.hypotheses == ("cumul_hierarchique",)
+    assert "34, 345, 3455, 34552" in tva.details
+    # 441110024 et ses parents
+    cr = par_valeur[("Credit", Decimal("3481.47"))]
+    assert cr.hypotheses == ("cumul_mis_a_jour", "cumul_hierarchique")
+    assert "44, 441, 4411, 44111, 441110024" in cr.details
+    # 13 comptes touchés, tous expliqués : aucun « inconnu »
+    assert not [x for x in s.interpretation.champs_calcules if x.hypotheses == ("inconnu",)]
+
+
+def test_cumul_hierarchique_jamais_le_niveau_classe(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_comptes(base)
+    s = jouer(["UPDATE compte SET Debit = ROUND(Debit + 5.00, 2) WHERE Compte IN ('6', '61', '612')"])
+    details = " | ".join(c.details for c in s.interpretation.champs_calcules)
+    assert "comptes liés par préfixe : 61, 612" in details  # le compte « 6 » n'est jamais dans la chaîne
+    # le compte de classe (« 6 ») lui-même ne reçoit pas l'hypothèse
+    seul = [c for c in s.interpretation.champs_calcules if "cumul_hierarchique" not in c.hypotheses]
+    assert len(seul) == 1 and seul[0].valeur == Decimal("1005")
+
+
+def test_cumul_hierarchique_exige_le_meme_delta(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_comptes(base)
+    s = jouer(["UPDATE compte SET Debit = ROUND(Debit + 10, 2) WHERE Compte = '61'",
+               "UPDATE compte SET Debit = ROUND(Debit + 11, 2) WHERE Compte = '612'"])
+    assert all("cumul_hierarchique" not in c.hypotheses for c in s.interpretation.champs_calcules)
+
+
+def test_cumul_hierarchique_exige_un_lien_de_prefixe(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_comptes(base)
+    s = jouer(["UPDATE compte SET Debit = ROUND(Debit + 7, 2) WHERE Compte IN ('71', '72')"])
+    assert all("cumul_hierarchique" not in c.hypotheses for c in s.interpretation.champs_calcules)
+
+
+def test_cumul_hierarchique_une_seule_ligne_isolee(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_comptes(base)
+    s = jouer(["UPDATE compte SET Debit = ROUND(Debit + 7, 2) WHERE Compte = '61'"])
+    assert [c.hypotheses for c in s.interpretation.champs_calcules] == [("inconnu",)]
+
+
+def test_cumul_hierarchique_scompte_par_mois_et_insertion(base: sqlite3.Connection, jouer: Jouer) -> None:
+    _base_comptes(base)
+    for compte in ("61", "612"):
+        base.execute("INSERT INTO scompte VALUES (?, '10', '100.0000', '0.0000')", (compte,))
+        base.execute("INSERT INTO scompte VALUES (?, '09', '100.0000', '0.0000')", (compte,))
+    s = jouer([
+        "UPDATE scompte SET Debit = ROUND(Debit + 20, 2) WHERE Mois = '10'",
+        "INSERT INTO scompte VALUES ('6126', '10', '20.0000', '0.0000')",  # INSERT : delta = valeur
+        "UPDATE scompte SET Debit = ROUND(Debit + 3, 2) WHERE Mois = '09' AND Compte = '61'",  # autre mois : isolé
+    ])
+    par = {(c.table, Decimal(str(c.valeur))): c for c in s.interpretation.champs_calcules}
+    assert par[("scompte", Decimal("120"))].hypotheses == ("cumul_hierarchique",)
+    assert "61, 612, 6126" in par[("scompte", Decimal("120"))].details
+    assert par[("scompte", Decimal("103"))].hypotheses == ("inconnu",)

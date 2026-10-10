@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Sequence
 
-from .calcules import ChampCalcule, detecter_champs_calcules
+from .calcules import TABLES_IGNOREES_ANALYSE_DEFAUT, ChampCalcule, detecter_champs_calcules
 from .cellules import extraire_cellules
 from .diff import Avertissement, ResultatDiff
 from .instantane import Instantane
@@ -43,6 +43,7 @@ def interpreter(
     debut: datetime,
     fin: datetime,
     profil: Profil | None = None,
+    tables_ignorees_analyse: Sequence[str] = TABLES_IGNOREES_ANALYSE_DEFAUT,
 ) -> ResultatInterpretation:
     """Lie les valeurs saisies aux colonnes écrites, puis émet des hypothèses pour le reste.
 
@@ -56,6 +57,6 @@ def interpreter(
     )
     resultat.champs_calcules = detecter_champs_calcules(
         diff, cellules, expliquees, avant, apres, saisies, debut, fin, profil,
-        resultat.avertissements,
+        resultat.avertissements, tables_ignorees_analyse,
     )
     return resultat
