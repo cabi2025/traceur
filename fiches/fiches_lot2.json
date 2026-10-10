@@ -1,0 +1,135 @@
+{
+  "format_version": "1.0",
+  "lot": 2,
+  "fiches": [
+    {
+      "id": "S-201",
+      "titre": "Facture d'achat avec TVA (journal achat)",
+      "lot": 2,
+      "duree_min": 4,
+      "prerequis": [
+        "Logiciel ouvert sur ZZ-TEST TRACEUR (vérifier la barre de titre)",
+        "Base de TEST réinitialisée (bouton « Réinitialiser la base »)",
+        "Comptes 61263 (achats des prestations de service), 34552 et 441110024 existants dans ZZ-TEST (vérifié le 2026-10-07)"
+      ],
+      "reinitialiser_avant": true,
+      "etapes": [
+        {
+          "n": 1,
+          "texte": "Traceur : cliquer « Début »",
+          "capture_ref": ""
+        },
+        {
+          "n": 2,
+          "texte": "Menu Ecriture → Saisie des écritures → Avec TVA",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 3,
+          "texte": "Mois : 10 — Journal : 611 (journal achat) — Contre partie : « Pas de contre partie »",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 4,
+          "texte": "Document : TEST-S201 — Pièce : laisser ce que propose le logiciel ; si le champ reste vide et est obligatoire, saisir 990201 — Jour : 15",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 5,
+          "texte": "Ligne 1 : Compte 61263 — Code TVA A20 — Libellé TEST-S201 — Débit ou HT : 1 234,56 — laisser le logiciel calculer la TVA — « Valider Ligne Ecriture »",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 6,
+          "texte": "Ligne 2 : Compte 441110024 — Libellé TEST-S201 — Crédit : 1 481,47 — « Valider Ligne Ecriture »",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 7,
+          "texte": "Échéance : laisser vide — cliquer « Ajouter »",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 8,
+          "texte": "Fermer l'écran de saisie (STOP)",
+          "capture_ref": "E-2.01.01"
+        },
+        {
+          "n": 9,
+          "texte": "Traceur : cliquer « Fin » et saisir les remarques",
+          "capture_ref": ""
+        }
+      ],
+      "valeurs_saisies": [
+        {
+          "champ_ecran": "Mois",
+          "ecran": "E-2.01.01",
+          "valeur": "10",
+          "type": "code"
+        },
+        {
+          "champ_ecran": "Journal",
+          "ecran": "E-2.01.01",
+          "valeur": "611",
+          "type": "code"
+        },
+        {
+          "champ_ecran": "Document",
+          "ecran": "E-2.01.01",
+          "valeur": "TEST-S201",
+          "type": "texte"
+        },
+        {
+          "champ_ecran": "Jour",
+          "ecran": "E-2.01.01",
+          "valeur": "15",
+          "type": "code"
+        },
+        {
+          "champ_ecran": "Compte",
+          "ecran": "E-2.01.01",
+          "valeur": "61263",
+          "type": "code"
+        },
+        {
+          "champ_ecran": "Code TVA",
+          "ecran": "E-2.01.01",
+          "valeur": "A20",
+          "type": "code"
+        },
+        {
+          "champ_ecran": "Libellé",
+          "ecran": "E-2.01.01",
+          "valeur": "TEST-S201",
+          "type": "texte"
+        },
+        {
+          "champ_ecran": "Débit ou HT",
+          "ecran": "E-2.01.01",
+          "valeur": "1234.56",
+          "type": "montant"
+        },
+        {
+          "champ_ecran": "Compte",
+          "ecran": "E-2.01.01",
+          "valeur": "441110024",
+          "type": "code"
+        },
+        {
+          "champ_ecran": "Crédit",
+          "ecran": "E-2.01.01",
+          "valeur": "1481.47",
+          "type": "montant"
+        }
+      ],
+      "a_noter": [
+        "Numéro de pièce : proposé par le logiciel ou saisi (990201) ?",
+        "Montant de TVA affiché (246,91 ou 246,92 ?)",
+        "Une ligne TVA (34552) a-t-elle été ajoutée automatiquement ?",
+        "Libellé de la ligne TVA : « TVA/TEST-S201 » ajouté automatiquement ?",
+        "Le champ Mois TVA s'est-il rempli seul ? avec quelle valeur ?",
+        "Tout message affiché (recopier tel quel)"
+      ]
+    }
+  ]
+}

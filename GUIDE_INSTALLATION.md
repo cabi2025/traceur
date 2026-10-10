@@ -12,6 +12,25 @@ Public : la personne qui prépare le poste du comptable. Le comptable, lui, lit 
 
 > Aucune donnée réelle n'est versionnée dans le dépôt. Les copies de bases, `config.json` et les sorties restent sur les postes.
 
+## Architecture réelle
+
+| Machine | Rôle | Ce qui s'y trouve |
+|---|---|---|
+| **PC de développement** | Code, tests, build | Dépôt Git, `pytest`, `mypy`. **N'a accès ni au serveur ni au poste du comptable.** |
+| **Serveur compta** `\\192.168.16.91` | Logiciel legacy et bases | Windows XP / Server 2003, partage `wcpt`. **Le traceur ne peut pas y tourner** (Python 3.11 non supporté). |
+| **Poste du comptable : PC03** | Exécution du traceur | Windows 10 LTSC 1809 |
+
+Sur PC03 :
+- `C:\traceur\traceur.exe`, `C:\traceur\config.json`, `C:\traceur\fiches_lot2.json`
+- Base de TEST lue (lecture seule, via SMB1) : `\\192.168.16.91\wcpt\ZZ_TEST\2026\dossier.mdb`
+- Instantané de référence : `C:\traceur_ref\2026\`
+- Sorties : `C:\traceur_sorties\`
+
+Circulation des fichiers :
+- Le `.exe` va du PC de développement vers PC03 (copie manuelle). Pour une mise à jour, ne recopier que `traceur.exe` ; `config.json` et les fiches du poste ne sont jamais écrasés.
+- Les traces réelles reviennent de PC03 **à la main** dans `donnees_reelles\<fiche>\` du dépôt. Ce dossier est exclu de Git (`.gitignore`) : données comptables réelles.
+- Le build de `traceur.exe` se fait sous Windows avec Python 32 bits (voir §8) ; il est impossible depuis un environnement Linux.
+
 ## 2. Dossier de travail
 Créez par exemple `C:\Traceur\` (ou un dossier propre à l'utilisateur) et copiez-y :
 
