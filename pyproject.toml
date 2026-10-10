@@ -1,0 +1,32 @@
+[project]
+name = "traceur"
+version = "0.0.0"
+description = "Traceur : observe les écritures d'un logiciel legacy dans sa base Access .mdb"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+access = ["pyodbc"]
+ui = ["Pillow"]
+windows = ["pyodbc", "pywin32"]
+dev = ["pytest", "mypy"]
+build = ["pyinstaller"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["traceur*", "outils*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "windows: test d'intégration Access (Windows, Python 32 bits, pywin32, pyodbc)",
+    "ui: test de l'interface Tkinter (nécessite un écran ; sous Linux : xvfb-run)",
+]
+
+[tool.mypy]
+files = ["traceur/moteur"]
+strict = true

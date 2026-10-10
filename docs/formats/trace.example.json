@@ -46,19 +46,21 @@
       "updates": [
         { "cle": { "CODE_JOURNAL": "ACH" }, "champs": [ { "colonne": "DERNIER_NUM", "avant": "41", "apres": "42" } ] }
       ],
-      "deletes": []
+      "deletes": [],
+      "updates_probables": []
     }
   ],
   "bruit": [
     { "table": "SESSIONS", "resume": "1 ligne modifiée (ignorée : table de bruit)" }
   ],
   "liens": [
-    { "champ_ecran": "Débit", "ecran": "001", "table": "LIGNES", "colonne": "DEBIT", "type_correspondance": "exacte", "confiance": "haute" }
+    { "champ_ecran": "Débit", "ecran": "001", "valeur": "1234.56", "table": "LIGNES", "colonne": "DEBIT", "type_correspondance": "exacte", "confiance": "haute" }
   ],
   "champs_calcules": [
     { "table": "ECRITURES", "colonne": "PIECE", "valeur": "0042", "hypotheses": ["compteur"], "details": "max avant = 0041" },
     { "table": "COMPTEURS", "colonne": "DERNIER_NUM", "valeur": "42", "hypotheses": ["compteur"], "details": "41 → 42" }
   ],
   "ecarts_saisie": [],
-  "schema_modifie": []
+  "schema_modifie": [],
+  "avertissements": []
 }

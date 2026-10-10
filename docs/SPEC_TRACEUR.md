@@ -1,0 +1,262 @@
+# SPEC — Traceur V1
+
+## 1. Objectif
+Pendant qu'un comptable exécute un scénario court (une « fiche ») dans le logiciel legacy, le traceur détecte **tout ce que l'action écrit** dans la base `.mdb` de TEST. Il **interprète** ces changements (lien écran → colonne, champs calculés) et produit des rapports exploitables.
+
+Utilisateurs :
+- **le comptable**, qui exécute les fiches dans un autre bureau, a peu de temps et n'est pas technicien ;
+- **l'analyste**, qui exploite les rapports.
+
+## 2. Périmètre
+
+### V1 (à coder)
+| # | Fonction |
+|---|---|
+| F1 | Configuration et contrôles de sécurité au démarrage |
+| F2 | Profilage initial de la base |
+| F3 | Calibration du bruit (tables qui bougent sans action) |
+| F4 | Instantané avant / après |
+| F5 | Diff : INSERT / UPDATE / DELETE au niveau champ |
+| F6 | Lien automatique valeur saisie → colonne |
+| F7 | Détection et hypothèses de champs calculés |
+| F8 | Fiches intégrées : affichage, cochage, remarques, contrôle des écarts de saisie |
+| F9 | Captures d'écran automatiques |
+| F10 | Réinitialisation de la base de TEST |
+| F11 | Rapports JSON + HTML, dépôt dans le dossier partagé |
+
+### V2 (hors périmètre — prévoir seulement les points d'extension)
+- Génération de cas de test exécutables à partir des traces.
+- Génération d'un schéma SQL cible et d'un squelette de migration.
+- Validation des règles sur l'historique complet.
+- Carte de couverture multi-scénarios.
+
+**Points d'extension :** le format JSON des traces (§8) est stable et versionné (`format_version`). Les modules V2 le liront sans modifier le moteur.
+
+## 3. Contraintes et choix techniques
+- **Cible d'exécution :** poste Windows du comptable (Windows 10/11), sans installation de Python. Livraison sous forme d'un `.exe` unique (PyInstaller, `--onefile`).
+- **Build 32 bits obligatoire.** Windows fournit nativement le pilote ODBC 32 bits « Microsoft Access Driver (*.mdb) » (Jet 4.0). En 32 bits, il n'y a aucun pilote à installer.
+  - Au démarrage, il faut détecter les pilotes disponibles (`pyodbc.drivers()`). On préfère `Microsoft Access Driver (*.mdb)` ou `Microsoft Access Driver (*.mdb, *.accdb)`. Si aucun n'est trouvé, on affiche un message clair.
+- **Version Jet :** Jet 3 (Access 97) et Jet 4 (Access 2000) sont tous deux supportés. La version est détectée par l'octet 0x14 de l'en-tête (0 = Jet 3, 1 = Jet 4, voir `outils/version_jet.py`) et affichée dans le profil.
+- **Connexion en lecture seule et en accès partagé** pendant que le logiciel legacy tourne : `ReadOnly=1`, mot de passe `PWD` si fourni, fichier de groupe de travail `SystemDB` si `.mdw` fourni. Le fichier ne doit jamais être verrouillé en exclusif.
+  - La classe d'accès n'exécute que des `SELECT` et n'expose aucune méthode d'écriture. Le moteur Jet crée et supprime lui-même le fichier de verrou `.ldb` à côté de la base ; le `.mdb` n'est jamais modifié.
+  - Le moteur Jet met en cache les pages lues : la connexion est **rouverte avant chaque photo** (`SourceAccess.rafraichir()`). Mesure sur Windows : une connexion ouverte avant l'écriture ne la voit pas tout de suite (avant = 200 lignes, immédiat = 200) et la voit après ≈ 5 s (201) ; une connexion rouverte la voit aussitôt.
+  - Un mot de passe de base (`mot_de_passe`) et un groupe de travail (`fichier_mdw`) ne peuvent pas être utilisés ensemble (le pilote n'a qu'un paramètre `PWD`) : la configuration est refusée, avec le conseil de retirer le mot de passe de la copie de TEST.
+- **Volumétrie :** jusqu'à environ 25 ans d'écritures, donc des tables de plusieurs centaines de milliers de lignes. Une photo complète doit rester **en dessous de 60 s** sur un poste ordinaire. Si ce n'est pas tenable, c'est une ambiguïté à remonter. Le temps de photo est **mesuré et affiché** (par table et au total) dès le moteur ; aucune optimisation n'est faite avant une mesure sur la vraie base (AMB-002).
+- **Encodage :** textes Jet décodés selon `encodage_texte` (défaut `cp1252`).
+- **Interface :** Tkinter, en français, gros boutons, lisible par un non-technicien.
+
+## 4. Entrées — `config.json`
+Voir l'exemple dans `docs/formats/config.example.json`.
+
+| Clé | Oblig. | Description |
+|---|---|---|
+| `base_test` | oui | Chemin du `.mdb` de TEST tracé |
+| `mot_de_passe` | non | Mot de passe base (si non retiré) |
+| `fichier_mdw` | non | Fichier groupe de travail + `utilisateur` / `mot_de_passe_mdw` |
+| `instantane_reference` | oui | Copie fraîche servant à la réinitialisation |
+| `chemins_interdits` | oui | Chemins de production. Le démarrage est refusé si `base_test` y figure, ou est situé dans un dossier interdit (comparaison sur chemins normalisés : casse, `/` ou `\`, `.`/`..`, préfixe `\\?\`, UNC, lecteur réseau résolu en UNC par Windows). Les noms de serveur des deux côtés sont résolus en adresses IP (DNS) avant comparaison ; si la résolution échoue, la comparaison reste textuelle et un avertissement est écrit au journal. Conseil : lister le nom ET l'adresse IP du serveur de production |
+| `fichier_fiches` | non | Fichier JSON des fiches de scénarios. Absent : seuls le profilage et la calibration sont disponibles, les boutons de fiche sont désactivés avec un message |
+| `dossier_sorties` | oui | Dossier de dépôt (local ou partage réseau) |
+| `tables_ignorees` | non | Liste manuelle, ajoutée à la calibration (F3) |
+| `tables_ignorees_analyse` | non | Tables jamais prises comme **source** de l'hypothèse `copie` (§7.2) ; elles restent photographiées et comparées. Motifs avec `*` acceptés, casse ignorée. Défaut dans le code : `Table des erreurs`, `Erreurs de conversion*` (AMB-041.2) |
+| `encodage_texte` | non | Défaut `cp1252` |
+| `delai_stabilisation_s` | non | Défaut 3. Attente après « Fin » avant la photo, pour laisser le logiciel legacy terminer ses propres écritures. Il ne sert pas au cache du pilote (voir §3) |
+
+## 5. Interface — écrans
+
+### 5.1 Écran principal
+- Bandeau : base de TEST active, état de la connexion, date du dernier profilage. Si aucun profil n'existe : « Profil absent — lancer le profilage ».
+- Liste des fiches avec leur statut (`à faire` / `faite` / `écart` / `annulée`), dérivé de la dernière trace de la fiche (voir §8.2).
+- Boutons : **Choisir une fiche**, **Réinitialiser la base**, **Profiler la base**, **Calibrer le bruit**.
+
+### 5.2 Exécution d'une fiche
+- La fiche est affichée : titre, durée, prérequis, étapes numérotées avec case à cocher, référence de capture.
+- **Début** prend la photo avant, une capture d'écran et l'empreinte du fichier de la base, puis active les cases. Une fiche avec `reinitialiser_avant` propose de réinitialiser la base d'abord. « Annuler » pendant cette photo interrompt sans rien enregistrer.
+- **Fin** attend le délai de stabilisation, prend la photo après et une capture, calcule le diff et génère le rapport.
+- Champ libre **« Remarques / messages affichés »**, obligatoirement proposé avant de clôturer : s'il est vide, une confirmation explicite (« Terminer sans remarque ? ») est demandée.
+- **Annuler** (entre Début et Fin) : la trace est marquée `annulée` et conservée.
+- Pendant le calcul, une barre de progression s'affiche et l'interface ne doit jamais sembler figée : les opérations longues (profilage, calibration, photos, diff, dépôt, réinitialisation) tournent hors du fil de l'interface, un bouton « Annuler l'opération » interrompt le profilage, la calibration et la photo de début, et tous les boutons sont désactivés pendant une opération. Chaque photo ouvre une connexion neuve.
+- Fermer la fenêtre pendant une fiche demande confirmation et enregistre la fiche comme annulée.
+
+### 5.3 Fin de fiche
+- Résumé lisible : « 3 tables modifiées, 4 lignes ajoutées, 1 modifiée ».
+- **Alerte d'écart de saisie** si F8 détecte une valeur attendue introuvable (voir §7.4) : message simple, et bouton « Réinitialiser puis rejouer » (confirmation, réinitialisation, puis la même fiche est de nouveau proposée).
+- Le bouton « Ouvrir le rapport » ouvre `rapport.html` ; si le dépôt est en attente (partage indisponible), le résumé le dit et la trace est déposée au démarrage suivant.
+- La calibration propose les tables qui ont bougé ; l'utilisateur décoche celles à suivre normalement, puis valide (`bruit.json`).
+
+## 6. Moteur
+
+### 6.1 Architecture
+```
+traceur/
+  moteur/        # pur Python, sans dépendance Windows — testable partout
+    source.py      # interface SourceDonnees (lister_tables, schema, lire_lignes)
+    normalisation.py  # normalisation des valeurs, empreintes (§6.2)
+    instantane.py  # photo d'une base via une SourceDonnees
+    diff.py        # comparaison de deux instantanés
+    cellules.py    # cellules écrites par l'action (lignes insérées, champs modifiés)
+    liens.py       # F6 + écarts de saisie
+    calcules.py    # F7
+    interpretation.py  # enchaîne F6 puis F7
+    profilage.py   # F2
+    calibration.py # F3
+  sources/
+    access.py      # SourceDonnees via pyodbc/Jet
+    sqlite.py      # SourceDonnees pour les tests
+  ui/              # Tkinter : application.py (fenêtre), dialogues.py
+  rapports/        # JSON + HTML
+  securite.py      # F1, F10
+  config.py        # config.json (§4)
+  fiches.py        # fiches (§9) et statut dérivé des traces
+  controleur.py    # logique de l'application (§5), sans Tkinter ; opérations en fil de travail
+  captures.py      # F9
+  __main__.py      # point d'entrée : python -m traceur
+outils/
+  version_jet.py   # version Jet d'un .mdb (octet 0x14)
+  generer_mdb_test.py
+```
+Le moteur ne connaît que `SourceDonnees`. Les tests unitaires utilisent la source SQLite.
+
+### 6.2 Instantané (F4)
+Pour chaque table non ignorée :
+- schéma : colonnes, types, clé primaire si déclarée (avec le pilote Jet, qui ne gère pas `SQLPrimaryKeys`, elle est lue via les index uniques : index « PrimaryKey », AMB-028 à confirmer) ;
+- `nb_lignes` et **empreinte de table** (hash stable de l'ensemble des empreintes de lignes, indépendant de l'ordre) ;
+- empreintes de lignes, et contenu complet des lignes.
+
+**Normalisation avant hash :** `None` devient un marqueur nul ; les dates sont écrites en ISO ; les montants (`Decimal`/`Currency`) en chaîne exacte ; les flottants en `repr` ; les binaires en hash du contenu ; les textes sont normalisés en NFC, **sans** trim (un espace final est une donnée).
+
+Optimisation autorisée : si deux tables ont la même empreinte et le même nombre de lignes, on ne compare pas leur contenu.
+
+### 6.3 Diff (F5)
+Pour chaque table dont l'empreinte a changé (une table à empreinte, nombre de lignes et schéma identiques est ignorée) :
+- **avec clé primaire déclarée :** appariement par clé. On obtient `insert`, `delete`, et `update` avec, pour chaque champ, `avant` → `apres`.
+- **sans clé primaire :** on cherche une **clé candidate** issue du profilage (colonne ou couple de colonnes uniques et non nulles) et on l'utilise. S'il y en a plusieurs, on retient la première selon l'ordre de préférence du §6.4. La clé retenue figure dans `cle_utilisee` de la trace.
+  - À défaut, on compare des **multiensembles d'empreintes de lignes**. On obtient `lignes_ajoutees` et `lignes_supprimees`.
+  - Une paire ajoutée/supprimée qui diffère d'au plus 2 champs est proposée comme **`update_probable`**.
+  - L'appariement est glouton et déterministe : pour chaque ligne ajoutée, on retient la ligne supprimée libre qui diffère du plus petit nombre de champs (premier dans l'ordre en cas d'égalité). Les lignes appariées sortent de `lignes_ajoutees` / `lignes_supprimees`. Au-delà de 1 000 000 de comparaisons (ajoutées × supprimées), aucun appariement n'est tenté et un avertissement explicite est produit (table, nombre de lignes non appariées).
+- Le changement de schéma entre deux photos est signalé à part (`schema_modifie`) :
+  - **table ajoutée** : toutes ses lignes sont des `inserts` (ou `lignes_ajoutees` si la table n'a pas de clé) ;
+  - **table supprimée** : toutes ses lignes sont des `deletes` (ou `lignes_supprimees` sans clé) ;
+  - **colonnes modifiées** : les lignes sont comparées sur les colonnes communes aux deux photos, et un avertissement liste les colonnes ajoutées, supprimées et les types modifiés.
+
+### 6.4 Profilage (F2)
+Pour chaque table : nombre de lignes, colonnes, types déclarés et types observés, % de nuls, nombre de valeurs distinctes, min/max.
+
+Le profilage détecte :
+- les **clés candidates** : colonnes ou couples uniques et non nuls.
+  - Sont **exclues** : les colonnes montant/décimal, flottant, date/date-heure, mémo/binaire (et le texte de plus de 255 caractères, traité comme un mémo).
+  - **Ordre de préférence** : type (entier, puis texte court), puis le moins de colonnes, puis l'ordre des colonnes dans la table. Un couple a le type de sa colonne la moins préférée.
+  - Une table de moins de 2 lignes n'a aucune clé candidate ;
+- les **relations candidates** : colonne A dont les valeurs non nulles sont incluses à au moins 99 % dans une colonne clé candidate B, avec des types compatibles.
+  - Le critère de rétention est calculé **sur les lignes non nulles**. Le profil indique aussi, à titre informatif, le taux sur les valeurs distinctes.
+  - Une relation dont la colonne source est booléenne ou a moins de 3 valeurs distinctes non nulles est conservée avec `confiance: faible` (sinon `normale`). Elle est listée dans le dictionnaire mais **non dessinée** dans le graphe.
+
+Sortie : `profil.json` et `profil.html` (dictionnaire des tables + graphe des relations rendu en SVG ou en Mermaid embarqué, **sans dépendance réseau**).
+
+### 6.5 Calibration du bruit (F3)
+Le traceur prend 2 photos espacées de N secondes (défaut 30) **sans aucune action**, avec le logiciel ouvert. Les tables qui changent sont proposées comme `tables_bruit` et l'utilisateur valide.
+
+Pendant un diff, les tables de bruit sont rapportées à part (`bruit`), pas mêlées aux changements.
+
+Sortie : `bruit.json` (format : `docs/formats/bruit.example.json`) avec les tables proposées (et leur résumé), les tables de bruit validées et les `tables_ignorees` de la configuration. Les `tables_ignorees` sont exclues des photos ; les tables de bruit validées restent photographiées et sont rapportées à part (`bruit`).
+
+## 7. Interprétation
+
+### 7.1 Lien saisie → colonne (F6)
+Chaque fiche déclare des **valeurs saisies** typées (§9). Pour chacune, le traceur cherche les correspondances dans les lignes insérées ou modifiées.
+- Correspondance exacte après normalisation de type : montant décimal, date (plusieurs formats : `AAAA-MM-JJ`, `JJ/MM/AAAA`, `JJ-MM-AAAA`, `JJ.MM.AAAA`), texte. Un `code` est comparé comme texte ; un entier égal au code (sans zéro de tête) est exact.
+- **`espaces_fin`** (confiance `haute`, AMB-041.1) : le texte (ou code) de la base ne diffère de la valeur saisie que par des **espaces de fin** (le logiciel complète les textes par des espaces : `'TEST-S201     '`). Seuls les espaces de fin (U+0020) sont supprimés, des deux côtés ; jamais pour un montant. Elle compte comme une correspondance exacte pour écarter les tolérées, et une valeur trouvée ainsi n'est jamais un écart de saisie (§7.4). Les valeurs brutes de `trace.json` ne sont pas modifiées.
+- Correspondances tolérées, chacune signalée avec son type (`signe_inverse`, `x100`, `div100`, `date_heure`, `tronque`, `majuscules`) : signe inversé, montant × 100 ou ÷ 100, date stockée en date-heure, texte tronqué (au moins 3 caractères) ou en majuscules. Elles ne sont cherchées que s'il n'existe **aucune** correspondance exacte pour la valeur. Une date-heure à minuit pile est une correspondance `exacte` ; `date_heure` n'est utilisé que si l'heure est non nulle. Aucune tolérance pour un montant nul ni pour un `code`.
+- Seules les cellules écrites par l'action sont examinées : toutes les colonnes des lignes insérées, et uniquement les champs modifiés des lignes modifiées.
+- `confiance` : `haute` (exacte, espaces_fin, date_heure), `moyenne` (signe_inverse, majuscules, tronque), `faible` (x100, div100).
+
+Le lien se fait **par valeur** : chaque lien porte la valeur saisie concernée (deux saisies d'un même champ d'écran donnent deux liens distincts). **Aucun lien automatique** n'est fait en V1 entre le texte libre des remarques (messages affichés) et les valeurs en base.
+
+Résultat : `liens = [{champ_ecran, ecran, valeur, table, colonne, type_correspondance, confiance}]`.
+
+Une valeur attendue mais introuvable produit l'**écart de saisie** (§5.3).
+
+Une valeur de fiche qui n'est pas valide pour son type (ex. montant non numérique) ne peut pas être recherchée : elle produit un avertissement `valeur_saisie_invalide`, pas un écart.
+
+### 7.2 Champs calculés (F7)
+Tout champ d'une ligne insérée ou modifiée **non expliqué par F6** est un champ calculé. Le traceur teste ces hypothèses, dans l'ordre, et retient toutes celles qui tiennent :
+
+| Hypothèse | Test |
+|---|---|
+| `compteur` | **Réservé aux colonnes entières et aux codes texte numériques — jamais à une colonne monétaire (CURRENCY/DECIMAL), flottante ou à un montant écrit en texte** (AMB-041.3). Vaut max(colonne avant) + 1, ou + pas constant (pas déduit des écarts constants des valeurs d'avant ; pour plusieurs lignes insérées, max + 1, + 2, …). Pour une ligne modifiée : valeur avant + 1, ou + un delta identique sur au moins 2 lignes modifiées. Pour un texte : préfixe éventuel + suffixe numérique incrémenté, largeur conservée (ex. `0041` → `0042`, `ACH-0041` → `ACH-0042`) ; un texte entièrement numérique est le cas sans préfixe |
+| `horodatage_systeme` | Date ou heure comprise dans l'intervalle [Début − 2 min, Fin + 2 min] (marge d'écart d'horloge entre le poste et le serveur) |
+| `somme_lignes` | Égale à la somme d'une colonne numérique des lignes liées insérées dans le même diff |
+| `copie` | Égale à une valeur d'une autre table, lue dans la photo avant via une relation candidate. **Exclus** (AMB-041.2) : les valeurs triviales (nulle, `0`, `0.0000`, chaîne vide ou blanche) et les tables listées dans `tables_ignorees_analyse` |
+| `constante` | Toujours la même valeur sur toute la table (voir profil) |
+| `cumul_mis_a_jour` | Delta du champ égal à un montant saisi ou à son opposé |
+| `cumul_hierarchique` | Tables `compte` et `scompte` (AMB-041.4, règle R-003 de `docs/CARTE_ECRANS.md`) : même delta, sur la même colonne (et le même mois pour `scompte`), pour un compte et pour au moins un de ses comptes parents ou enfants — préfixes d'**au moins 2 caractères** (jamais le niveau classe), comparés sans espaces de fin. Une insertion compte pour un delta égal à sa valeur |
+| `inconnu` | Aucune hypothèse ne tient |
+
+Les relations candidates de confiance `faible` sont exclues de `somme_lignes` et de `copie`.
+
+**Profil absent :** si aucun profil n'est disponible, les hypothèses qui en dépendent (`somme_lignes` et `copie`, qui utilisent les relations candidates, et `constante`) sont désactivées et un avertissement est inscrit dans le rapport (`avertissements[]`).
+
+Chaque hypothèse est **marquée comme hypothèse**, pas comme règle. La confirmation se fait plus tard, côté analyse.
+
+### 7.5 Réanalyse hors ligne (AMB-042)
+`traceur.exe --reanalyser <trace.json> [--sortie <dossier>] [--config <config.json>]` recalcule `liens`, `ecarts_saisie` et `champs_calcules` d'une trace existante avec les règles courantes, **sans accès à la base** (ni configuration obligatoire, ni pyodbc). Le résultat est écrit dans `trace_reanalysee.json` et `rapport_reanalyse.html` (par défaut à côté du `trace.json`, qui n'est jamais modifié). Les hypothèses qui exigent les photos (`compteur` d'une insertion, `copie`, `constante`, `somme_lignes`) sont **reprises de l'original**, filtrées par les règles courantes, avec l'avertissement `non_recalculable_hors_ligne` (« non recalculable hors ligne »). Les types de `trace.json` étant perdus à l'écriture, une chaîne `x.xxxx` est relue comme un montant et une chaîne ISO comme une date.
+
+### 7.3 Pas d'inférence inventée
+Aucune autre heuristique ne doit être ajoutée sans passer par `SUIVI_AMBIGUITES.md`.
+
+### 7.4 Écart de saisie
+Une valeur attendue est introuvable, ou une valeur saisie diffère manifestement de la fiche (exemple : 1 243,56 trouvé au lieu de 1 234,56, même table et même colonne attendue). Le rapport porte alors le statut `ecart_saisie`.
+
+Règle V1 : la « colonne attendue » est celle où d'autres saisies du même champ d'écran ont été liées dans la même trace. Une cellule écrite (non expliquée) de cette colonne « diffère manifestement » si sa forme normalisée est à une distance de Damerau-Levenshtein ≤ 1 (insertion, suppression, substitution ou transposition de deux caractères voisins, comptée 1) de la valeur attendue ; textes et codes d'au moins 4 caractères seulement. Sinon l'écart est `introuvable`. Chaque écart porte `champ_ecran`, `ecran`, `valeur_attendue`, `type_ecart` (`introuvable` | `valeur_differente`), `table`, `colonne`, `valeur_trouvee` (nuls pour `introuvable`).
+
+## 8. Sorties
+Arborescence dans `dossier_sorties` :
+```
+profil/                       profil.json, profil.html
+calibration/                  bruit.json
+traces/S-003_20261005-101522/
+    trace.json                # format §8.1
+    rapport.html              # lisible, autonome (CSS inline, pas de réseau)
+    capture_debut.png
+    capture_fin.png
+    remarques.txt
+index.html                    # liste des traces, statut, liens
+```
+Le journal `journal.log` est écrit **en local à côté de l'exécutable** et copié dans `dossier_sorties` à chaque dépôt. Il ne contient jamais de mot de passe.
+
+`rapport.html` est une page autonome, en français : en-tête (fiche, dates, durée, poste, utilisateur), statut, résumé (« 3 tables modifiées, 4 lignes ajoutées, 1 modifiée »), remarques du comptable, ce que la fiche a écrit table par table (avant → après), valeurs saisies retrouvées, écarts de saisie, valeurs calculées (présentées comme hypothèses), tables de bruit, changements de structure, avertissements, captures. Les valeurs sont affichées telles que dans `trace.json`. Les captures sont des fichiers voisins ; une capture impossible (pas d'écran, Pillow absent) n'interrompt jamais la fiche : le rapport indique « Aucune capture disponible ». La capture couvre **tous les écrans** (Pillow `ImageGrab.grab(all_screens=True)` sous Windows), avec repli sur l'écran principal en cas d'échec. Une fiche annulée produit une trace sans comparaison.
+
+L'écriture se fait d'abord dans un dossier local (`traces_locales/`, à côté de l'exécutable), construit sous un nom caché puis renommé, puis le dossier est **déposé en une fois** dans `dossier_sorties/traces/` : copie vers un dossier caché du partage, vérification du SHA-256 de chaque fichier, puis renommage atomique ; le dossier local n'est supprimé qu'après succès. En cas de collision de nom, une trace identique est considérée comme déjà déposée, sinon un suffixe `_2`, `_3`… est ajouté. L'état de dépôt est mémorisé dans `depot.json` du dossier local (jamais copié vers le partage). Après chaque dépôt, `index.html` est reconstruit (écriture puis remplacement atomique). Si le partage est inaccessible, la trace reste en local et son dépôt est marqué `en_attente_depot` (§8.2), avec une nouvelle tentative au démarrage suivant.
+
+### 8.1 `trace.json`
+Voir l'exemple complet dans `docs/formats/trace.example.json`. Clés de premier niveau :
+`format_version`, `fiche` (id, titre, valeurs_saisies), `execution` (debut, fin, poste, utilisateur_windows, statut, remarques), `base` (chemin, empreinte_fichier_avant), `changements[]`, `bruit[]`, `liens[]`, `champs_calcules[]`, `ecarts_saisie[]`, `schema_modifie[]`, `avertissements[]`.
+
+Chaque élément de `changements[]` porte `table` et `cle_utilisee` (`type` : `primaire` | `candidate` | `aucune`, et `colonnes`), puis, comme dans l'exemple (qui fait foi) :
+- table avec clé (primaire ou candidate) : `inserts[]`, `updates[]` (champ à champ : `colonne`, `avant`, `apres`), `deletes[]` ;
+- table sans clé : `lignes_ajoutees[]`, `lignes_supprimees[]` ;
+- dans les deux cas : `updates_probables[]`.
+
+Valeurs : montants en chaîne décimale exacte, dates en ISO 8601, aucun flottant JSON.
+
+Chaque élément de `avertissements[]` porte `table`, `code` (ex. `appariement_plafond_atteint`, `schema_modifie_colonnes_communes`, `cle_candidate_petite_table`), `message` (français) et des champs propres au code (ex. `lignes_ajoutees_non_appariees`, `lignes_supprimees_non_appariees`, `colonnes_ajoutees`, `colonnes_supprimees`, `types_modifies`, `cle_candidate`, `nb_lignes`). `cle_candidate_petite_table` (AMB-037) : le diff d'une table de moins de 50 lignes a utilisé une clé candidate issue du profil, peut-être unique par hasard ; le même seuil déclenche un avertissement dans `profil.html`.
+
+### 8.2 Statuts
+- `execution.statut` : `terminee` | `annulee` | `ecart_saisie`.
+- Statut d'une fiche (écran principal), dérivé de sa dernière trace : aucune trace → `à faire` ; `terminee` → `faite` ; `ecart_saisie` → `écart` ; `annulee` → `annulée`.
+- Dépôt : `deposee` | `en_attente_depot`, distinct du statut d'exécution ; mémorisé dans `depot.json` (`depot`, `tentatives`, `derniere_erreur`, `cree`) du dossier local.
+
+## 9. Fiches de scénarios — format d'entrée
+Voir `docs/formats/fiches.example.json`. Une fiche contient :
+`id`, `titre`, `lot`, `duree_min`, `prerequis[]`, `reinitialiser_avant` (bool), `etapes[]` (texte, `capture_ref` éventuelle), `valeurs_saisies[]` (`champ_ecran`, `ecran`, `valeur`, `type`: `montant|date|texte|code`), `a_noter[]`.
+
+## 10. Réinitialisation (F10)
+- Elle exige une confirmation explicite, avec un texte qui rappelle la base visée.
+- Elle vérifie qu'aucun fichier de verrou actif n'existe à côté de la base de TEST (`.ldb` pour un `.mdb`, `.laccdb` pour un `.accdb`), c'est-à-dire que le logiciel legacy est fermé. Sinon elle refuse, avec un message.
+- Elle copie `instantane_reference` vers `base_test` après les contrôles F1 (copie directe, sans fichier temporaire), puis compare le SHA-256 du résultat à celui de l'instantané ; un écart est une erreur journalisée, sans nouvelle tentative automatique, et la base de TEST est à considérer comme invalide. La connexion du traceur doit être fermée avant (Jet pose un `.ldb` tant qu'elle est ouverte) ; le verrou est contrôlé avant et après la confirmation.
+- Elle journalise l'opération dans `journal.log` (local, voir §8).
+
+## 11. Critères de qualité
+- Tests unitaires du moteur sur SQLite : tables avec et sans clé primaire, doublons, nuls, dates, décimaux, modification de schéma, chaque hypothèse de F7.
+- Test d'intégration sur un `.mdb` synthétique généré par script sous Windows (ADOX via `pywin32`) : `outils/generer_mdb_test.py`.
+- Aucune exception non gérée ne doit atteindre l'utilisateur. Les erreurs s'affichent en français, avec le détail dans `journal.log`.

@@ -6,54 +6,80 @@
 ---
 
 ## J0 — Cadrage technique (pas de code métier)
-- [ ] Lecture complète de `CLAUDE.md`, `docs/SPEC_TRACEUR.md`, `docs/formats/*`
-- [ ] Squelette du dépôt conforme à SPEC §6.1, `pyproject.toml`, `.gitignore`, `pytest` qui tourne (test vide)
-- [ ] Liste des ambiguïtés détectées à la lecture, inscrites dans `SUIVI_AMBIGUITES.md`
-- [ ] Compte rendu : plan d'implémentation des jalons J1 à J7, risques techniques identifiés
+- [x] Lecture complète de `CLAUDE.md`, `docs/SPEC_TRACEUR.md`, `docs/formats/*`
+- [x] Squelette du dépôt conforme à SPEC §6.1, `pyproject.toml`, `.gitignore`, `pytest` qui tourne (test vide)
+- [x] Liste des ambiguïtés détectées à la lecture, inscrites dans `SUIVI_AMBIGUITES.md`
+- [x] Compte rendu : plan d'implémentation des jalons J1 à J7, risques techniques identifiés
+
+> 2026-10-03 — Squelette créé, `pytest` vert (1 test), `mypy --strict` OK, AMB-003 à AMB-010 inscrites. Reste à cocher : compte rendu / plan, en attente du **GO**. Python local 64 bits (le 32 bits sera nécessaire dès J4).
 
 **Acceptation :** dépôt initialisé, `pytest` vert, registre des ambiguïtés à jour, plan validé par GO.
 
 ---
 
 ## J1 — Moteur : instantané + diff (F4, F5) sur SQLite
-- [ ] Interface `SourceDonnees` + implémentation SQLite
-- [ ] Normalisation des valeurs (SPEC §6.2), empreintes de lignes et de tables
-- [ ] Diff avec clé primaire : insert / update (champ à champ) / delete
-- [ ] Diff sans clé primaire : multiensembles, `update_probable`
-- [ ] Détection `schema_modifie`
-- [ ] Tests : PK / sans PK / doublons / nuls / dates / décimaux / espaces finaux / schéma modifié / table inchangée ignorée
+- [x] Interface `SourceDonnees` + implémentation SQLite
+- [x] Normalisation des valeurs (SPEC §6.2), empreintes de lignes et de tables
+- [x] Diff avec clé primaire : insert / update (champ à champ) / delete
+- [x] Diff sans clé primaire : multiensembles, `update_probable`
+- [x] Détection `schema_modifie`
+- [x] Tests : PK / sans PK / doublons / nuls / dates / décimaux / espaces finaux / schéma modifié / table inchangée ignorée
+
+> 2026-10-03 — Fait. 36 tests verts, `mypy --strict traceur/moteur` sans erreur, aucun flottant pour un montant (`Decimal` → chaîne exacte).
+> Ajouts demandés : mesure du temps de photo (`Instantane.resume()`, `tests/test_mesure_temps.py`) et `outils/version_jet.py` (AMB-001).
+> Mesure indicative sur SQLite en mémoire : 120 000 lignes en ~1,4 s — **ne vaut pas mesure sur la vraie base** (AMB-002 reste ouverte).
+> Décisions AMB-001, 003 à 010 recopiées dans le registre ; SPEC mise à jour. Nouvelles ambiguïtés ouvertes : AMB-011 à AMB-013 (`TODO` dans `diff.py`).
 
 **Acceptation :** tous les tests verts ; `mypy --strict traceur/moteur` sans erreur ; aucun flottant pour un montant.
 
 ---
 
 ## J2 — Profilage + calibration (F2, F3)
-- [ ] Profil par table (SPEC §6.4) : stats, clés candidates, relations candidates avec taux d'inclusion
-- [ ] Utilisation des clés candidates par le diff sans PK
-- [ ] Calibration du bruit : 2 photos sans action → `bruit.json` ; tables de bruit isolées dans le diff
-- [ ] `profil.html` autonome avec graphe des relations, sans réseau
+- [x] Profil par table (SPEC §6.4) : stats, clés candidates, relations candidates avec taux d'inclusion
+- [x] Utilisation des clés candidates par le diff sans PK
+- [x] Calibration du bruit : 2 photos sans action → `bruit.json` ; tables de bruit isolées dans le diff
+- [x] `profil.html` autonome avec graphe des relations, sans réseau
+
+> 2026-10-03 — Fait. 66 tests `pytest` verts, `mypy --strict traceur/moteur` sans erreur. HTML vérifié hors ligne dans Chromium (aucune requête réseau).
+> En tête de J2 : AMB-011/012/013 implémentées et closes (inserts/deletes des tables ajoutées/supprimées, diff sur colonnes communes, avertissements).
+> Nouvelles ambiguïtés ouvertes : AMB-014 à AMB-018 (`TODO` dans `profilage.py` et `calibration.py`). AMB-016 : relations sur colonnes à peu de valeurs distinctes acceptées telles que la SPEC les définit.
+> Ajout : `docs/formats/bruit.example.json` (format provisoire de `bruit.json`).
 
 **Acceptation :** tests sur une base SQLite à relations connues (FK retrouvées, fausses relations absentes) ; HTML ouvrable hors ligne.
 
 ---
 
 ## J3 — Interprétation (F6, F7)
-- [ ] Lien saisie → colonne : exact + correspondances tolérées signalées (SPEC §7.1)
-- [ ] Écarts de saisie (SPEC §7.4)
-- [ ] Champs calculés : chaque hypothèse de SPEC §7.2, plusieurs hypothèses possibles par champ
-- [ ] Tests : un cas par type de correspondance, un cas par hypothèse, un cas `inconnu`, un écart de saisie
+- [x] Lien saisie → colonne : exact + correspondances tolérées signalées (SPEC §7.1)
+- [x] Écarts de saisie (SPEC §7.4)
+- [x] Champs calculés : chaque hypothèse de SPEC §7.2, plusieurs hypothèses possibles par champ
+- [x] Tests : un cas par type de correspondance, un cas par hypothèse, un cas `inconnu`, un écart de saisie
+
+> 2026-10-03 — Fait. 131 tests `pytest` verts, `mypy --strict traceur/moteur` sans erreur.
+> Avant J3 : décisions AMB-011 et AMB-014 à 018 intégrées (clés candidates filtrées et ordonnées, relations à `confiance` faible, taux sur valeurs distinctes dans le profil).
+> Nouvelles ambiguïtés ouvertes : AMB-019 à AMB-022 (`TODO` dans `liens.py` et `calcules.py`). Les règles correspondantes sont provisoires et décrites dans la SPEC.
 
 **Acceptation :** tests verts ; aucune heuristique hors SPEC.
 
 ---
 
 ## J4 — Source Access + sécurité (F1, F10)
-- [ ] `SourceDonnees` Access via pyodbc : lecture seule, partagé, mot de passe, `.mdw`
-- [ ] Détection des pilotes ODBC disponibles, message clair si absent
-- [ ] Contrôles de démarrage : `chemins_interdits`, `base_test ≠ instantane_reference`, chemins normalisés (casse, UNC)
-- [ ] Réinitialisation : confirmation, refus si `.ldb` présent, copie, vérification du hash, journal
-- [ ] `outils/generer_mdb_test.py` (ADOX/pywin32) : base synthétique avec tables avec et sans PK, montants, dates
-- [ ] Test d'intégration sous Windows : diff sur une modification faite par un script tiers pendant que la base est ouverte
+- [x] `SourceDonnees` Access via pyodbc : lecture seule, partagé, mot de passe, `.mdw`
+- [x] Détection des pilotes ODBC disponibles, message clair si absent
+- [x] Contrôles de démarrage : `chemins_interdits`, `base_test ≠ instantane_reference`, chemins normalisés (casse, UNC)
+- [x] Réinitialisation : confirmation, refus si `.ldb` présent, copie, vérification du hash, journal
+- [x] `outils/generer_mdb_test.py` (ADOX/pywin32) : base synthétique avec tables avec et sans PK, montants, dates
+- [x] Test d'intégration sous Windows : diff sur une modification faite par un script tiers pendant que la base est ouverte
+
+> 2026-10-03 — **J4 TERMINÉ.** Quatrième essai Windows (Python 32 bits) : **245 passed** (233 tests unitaires + 12 tests d'intégration Access), 0 échoué, 0 sauté. Critères d'acceptation : intégration verte sous Windows 32 bits ✔ ; INSERT et DELETE refusés via la connexion du traceur, `.mdb` inchangé (SHA-256) ✔ ; mot de passe absent des logs (base protégée, bon et mauvais mot de passe) ✔.
+> Validation manuelle sous Windows (2026-10-04, Python 3.14.8 32 bits) : diagnostic complet (étape 9) ; refus de démarrer sur base de production, sous deux écritures du chemin, et sur TEST = instantané, code de sortie 1 (étape 11) ; script tiers puis réinitialisation réelle : refus sur `non`, copie vérifiée sur `OUI`, SHA-256 de la base de TEST identique à celui de la référence (`19f0287a…c14f45`), effectifs revenus à 2000 / 1000 / 50 lignes (étape 12). Clés primaires lues sur Jet (NUM, ID) : AMB-028 vérifié sur la base synthétique.
+> Historique : voir les essais 1 à 3 ci-dessous. Restent ouverts, sans bloquer J5 : AMB-001 (version Jet de la vraie base), AMB-002 (temps de photo réel), AMB-027 (mesurée : voir le registre ; décision à prendre), AMB-028 (clés primaires de la vraie base : `outils/sonder_pilote.py`).
+> Texte initial : Tout ce qui est testable sous Linux est vert (233 passés, 12 sautés = tests d'intégration Access, `mypy --strict traceur/moteur` sans erreur). La case « Test d'intégration sous Windows » reste à cocher après exécution de `outils/LISEZMOI_J4.md` (étapes 5, 9, 10).
+> Livrés : `traceur/config.py`, `traceur/securite.py`, `traceur/sources/access.py`, `outils/{generer_mdb_test,version_jet,simuler_logiciel,diagnostic}.py`, `tests/test_integration_access.py`.
+> Ambiguïtés ouvertes : AMB-023 à AMB-027 (dont AMB-027, cache Jet, à mesurer sur Windows).
+> Premier essai Windows (2026-10-03) : 224 tests unitaires + `test_python_32_bits` verts (225 passés) ; 11 tests d'intégration en échec à cause d'un seul défaut du générateur : la colonne `NOTE` (mot réservé Jet, synonyme de MEMO) → corrigé (colonne `COMMENTAIRE`, identifiants entre crochets). Nouvel essai demandé.
+> Deuxième essai Windows : 235 passés, 3 échoués. Cause principale : le pilote Jet ne gère pas `SQLPrimaryKeys` (IM001) → clé primaire lue via `SQLStatistics`, index « PrimaryKey » (AMB-028) ; un test d'intégration attendait à tort `lignes_ajoutees` pour `LIGNES` alors que sa clé candidate donne des `inserts` → corrigé. `outils/sonder_pilote.py` ajouté pour diagnostiquer.
+> Troisième essai Windows : 239 passés, 3 échoués (tous liés à la clé primaire : le repli était actif mais aucun index « PrimaryKey » trouvé pour les clés déclarées en SQL). Réponse : le générateur nomme désormais explicitement `CONSTRAINT [PrimaryKey]` ; le traceur journalise les index vus quand aucun n'est nommé « PrimaryKey » (une fois par table) ; cache des clés par connexion.
 
 **Acceptation :** intégration verte sous Windows 32 bits ; preuve qu'aucune écriture n'est possible via la connexion du traceur (tentative d'INSERT refusée) ; mot de passe absent des logs.
 
@@ -62,31 +88,75 @@
 ---
 
 ## J5 — Rapports + dépôt (F9, F11)
-- [ ] `trace.json` conforme à `docs/formats/trace.example.json` (+ `format_version`)
-- [ ] `rapport.html` autonome et lisible par un non-technicien, en français
-- [ ] `index.html` des traces
-- [ ] Captures d'écran début/fin (Pillow `ImageGrab`)
-- [ ] Écriture en local puis déplacement atomique ; `en_attente_depot` + nouvelle tentative au démarrage
+- [x] `trace.json` conforme à `docs/formats/trace.example.json` (+ `format_version`)
+- [x] `rapport.html` autonome et lisible par un non-technicien, en français
+- [x] `index.html` des traces
+- [x] Captures d'écran début/fin (Pillow `ImageGrab`)
+- [x] Écriture en local puis déplacement atomique ; `en_attente_depot` + nouvelle tentative au démarrage
+
+> 2026-10-04 — **J5 validé sous Windows** (Python 3.14.8 32 bits) : trace d'exemple déposée avec **vraies captures d'écran** (`capture_debut.png`, `capture_fin.png`, sans `depot.json`) ; rapport affiché correctement (en-tête, statut, tableaux avant/après, valeurs retrouvées, hypothèses, captures) ; écart de saisie ; **partage indisponible** (`Z:\` inexistant : « Le chemin d'accès spécifié est introuvable », trace conservée en local, `en_attente_depot`) puis **rétabli** (« Reprise d'un dépôt en attente … → deposee »). Lisibilité du rapport pour un comptable : **confirmée par l'utilisateur** (2026-10-04) ; index vérifié (4 traces, plus récentes d'abord, statut « Écart de saisie » en orange).
+> 2026-10-03 — Fait sous Linux : 293 tests `pytest` verts (12 sautés = intégration Access), `mypy --strict traceur/moteur` sans erreur. Rapport et index vérifiés dans Chromium. Simulation « partage indisponible puis rétabli » : `tests/test_depot.py` et `tests/test_demo_j5.py`. Reste à vérifier sous Windows : la vraie capture d'écran (`outils/LISEZMOI_J5.md`).
+> En tête de J5 : AMB-023 à 027 intégrées (`fichier_fiches` optionnel, résolution DNS des serveurs interdits, copie sans nouvelle tentative, `rafraichir()` avant chaque photo). Ouvertes : AMB-028, AMB-029 à AMB-031.
 
 **Acceptation :** rapport généré depuis une trace de test ; simulation d'un partage indisponible puis rétabli.
 
 ---
 
 ## J6 — Interface Tkinter (F8)
-- [ ] Écran principal, exécution de fiche, fin de fiche (SPEC §5)
-- [ ] Chargement de `fiches.example.json`, statuts des fiches
-- [ ] Barre de progression, interface jamais figée (calculs hors thread UI)
-- [ ] Annuler, remarques, alerte d'écart de saisie
-- [ ] Messages d'erreur en français, détail dans `journal.log`
+- [x] Écran principal, exécution de fiche, fin de fiche (SPEC §5)
+- [x] Chargement de `fiches.example.json`, statuts des fiches
+- [x] Barre de progression, interface jamais figée (calculs hors thread UI)
+- [x] Annuler, remarques, alerte d'écart de saisie
+- [x] Messages d'erreur en français, détail dans `journal.log`
+
+> 2026-10-03 — **Livré, parcours Windows en attente.** Sous Linux : Python 3.11 → 363 passés, 14 sautés (12 Access + 2 Tkinter) ; Python 3.12 avec écran virtuel (`xvfb-run`) → 393 passés, 12 sautés (Access seulement), dont 27 tests de la vraie fenêtre Tkinter et 7 du point d'entrée. `mypy --strict traceur/moteur` sans erreur.
+> Validé sous Windows (2026-10-04, Python 3.14.8 32 bits) : 403 tests passés (dont les 27 de la fenêtre Tkinter) ; l'application se lance et affiche « Connectée en lecture seule (5 tables) » (à lancer dans l'environnement `.venv`). Constat : curseur vert figé sur la barre au repos → corrigé (408 attendus après `git pull`, Ctrl+C géré proprement : arrêt propre, code de sortie 130, fiche enregistrée « annulée »).
+> **Parcours Windows validé (2026-10-04)** : profilage (profil.html), calibration (aucune table de bruit), S-SYN-01 (terminée : 5 tables, 3 ajoutées, 2 modifiées, 1 supprimée), S-SYN-02 (écart de saisie, réinitialiser puis rejouer, hash identiques), annulation (bouton et croix), réinitialisation directe, refus si `.ldb` présent, partage indisponible puis reprise, refus de démarrer (production ; base de test = instantané), journal sans `ReadOnly=0`. Attendu : 408 passés (396 + 12 Access/Windows), 0 sauté.
+> Note : un premier essai de S-SYN-01 a été fait simulateur lancé avant « Début » : le traceur a correctement annoncé « Aucune modification » et l'écart de saisie. AMB-036 close (message de reprise des dépôts laissé tel quel).
+> En tête de J6 : AMB-029, 030, 031 closes (captures de tous les écrans). Nouvelles ambiguïtés ouvertes : AMB-032 à AMB-035.
+> Correction de sécurité trouvée par les tests : au lancement, le journal était configuré deux fois (sans puis avec secret) et le premier gestionnaire n'avait pas le masquage → un seul journal désormais.
 
 **Acceptation :** parcours complet sur la base synthétique : profiler → calibrer → fiche → rapport → réinitialiser.
 
 ---
 
 ## J7 — Livraison
-- [ ] Build PyInstaller `--onefile` **32 bits** : `traceur.exe`
-- [ ] `GUIDE_COMPTABLE.md` (1 page, langage simple) + `GUIDE_INSTALLATION.md` (config, chemins, partage)
-- [ ] Test de l'`.exe` sur un poste Windows sans Python
-- [ ] Bilan : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
+- [x] Script de build PyInstaller `--onefile` **32 bits** (`outils/construire_exe.py`, refuse un Python 64 bits, contrôle l'en-tête PE) — `traceur.exe` à construire sous Windows
+- [x] `GUIDE_COMPTABLE.md` (1 page, langage simple) + `GUIDE_INSTALLATION.md` (config, chemins, partage)
+- [x] Fiche de validation « S-000 » (`docs/formats/fiche_S000.json`, procédure dans `GUIDE_INSTALLATION.md` §5) dans le guide (AMB-027) : une saisie simple ; photo après 3 s puis après 10 s ; si les deux diffs diffèrent, augmenter `delai_stabilisation_s`
+- [~] Test de l'`.exe` sur un poste Windows sans Python : **partiel** (PATH réduit sur le poste de développement ; ni poste propre ni Bac à sable Windows disponibles) — voir réserve 1
+- [x] Bilan (`BILAN_V1.md`) : ambiguïtés ouvertes, limites connues, temps de photo mesuré sur la base synthétique volumineuse
+
+> 2026-10-04 — **Livré, test Windows en attente (J7 reste ouvert jusqu'à vos essais).** Ajouts : section « Antivirus » du guide d'installation, option `--onedir` de `construire_exe.py` en repli, mesure de photo finale à faire depuis le poste du comptable (partage réseau). Décisions AMB-032 à 035 (recommandations) enregistrées. Construction d'essai sous Linux (64 bits) : l'exécutable démarre, trouve Tkinter/Pillow et écrit `journal.log` à côté de lui. Photo du moteur seul : 23,9 s pour 1,2 million de lignes (SQLite en mémoire) ; la mesure Access reste à faire (AMB-002).
+> 2026-10-04 — Essais Windows avec `traceur.exe` (32 bits, 16 733 Ko) : lancement, profilage, S-SYN-01 (5 tables / 3 ajoutées / 2 modifiées / 1 supprimée, clé CODE_JOURNAL après réinitialisation), refus de démarrer, test partiel « sans Python » (PATH réduit ; pas de poste propre ni de Bac à sable Windows disponible). Photo ODBC Access sur base synthétique de 152 506 lignes : 2,93 s. AMB-037 ouverte. Restent : mesures sur la vraie copie depuis le poste du comptable (AMB-001, 002, 028), fiche S-000, relecture des guides.
 
 **Acceptation :** `.exe` lancé sur un poste propre, parcours complet OK, guides relus.
+
+> **2026-10-04 — J7 CLOS AVEC RÉSERVES (décision de l'utilisateur).**
+> - Tests : Python 3.12 + Tk 409 passés / 12 sautés ; Python 3.11 376 passés / 15 sautés ; `mypy --strict traceur/moteur` sans erreur ; sous Windows 421 attendus (409 + 12 Access), aucun sauté.
+> - Fait sous Windows : construction `traceur.exe` 32 bits (16 733 Ko), lancement sans console, journal à côté de l'exe, profilage, S-SYN-01, refus de démarrer (production), test partiel sans Python, photo ODBC de 152 506 lignes en 2,93 s. AMB-032 à 037 closes. `GUIDE_INSTALLATION.md` relu et validé par l'utilisateur.
+> - **Réserves :**
+>   1. **Premier lancement sur un poste réellement propre = le poste du comptable, antivirus actif** (repli `--onedir` et exclusion de dossier : `GUIDE_INSTALLATION.md` §7).
+>   2. **Mesures sur une copie réelle (AMB-001 version Jet, AMB-002 durée de photo, AMB-028 clés primaires) à faire avant la première session**, depuis le poste du comptable, base sur le partage réseau (`outils/LISEZMOI_J7.md`, étape 8).
+>   3. **Fiche S-000 à exécuter avec le comptable** pour valider le délai de stabilisation (`GUIDE_INSTALLATION.md` §5).
+>   4. ~~`GUIDE_COMPTABLE.md` en attente de relecture~~ — **levée** (2026-10-04) : texte fourni par l'utilisateur intégré. Reste à compléter avant livraison : le repère TEST affiché par le logiciel, le nom du contact et son téléphone/poste (`[…]` dans le guide), et la façon dont le logiciel choisit sa base pour le raccourci « Compta TEST » (`GUIDE_INSTALLATION.md`, §2 bis).
+
+> **2026-10-04 — Décision de cadrage : périmètre de la phase 1 des sessions.**
+> - **Une seule société, un seul exercice**, dans un dossier TEST. « Figé » = choisi et fixe, **pas clôturé** : l'exercice reste ouvert à la saisie. Le dossier TEST est une copie d'un exercice réel récent et encore ouvert. `base_test` = chemin fixe, en dur dans `config.json` ; aucun autre chemin n'est nécessaire au Traceur.
+> - Structure confirmée : un **catalogue** `.mdb` (même dossier que les dossiers, trouvé automatiquement par le logiciel) liste les sociétés et exercices ; chaque dossier `.mdb` = une société + un exercice. Le dossier TEST est déclaré dans le catalogue sous le nom **ZZ-TEST TRACEUR**.
+> - **Lots couverts : 1a, 2, 3 et 4** (1a : création de compte, tiers, journal ; saisies, traitements, états). **Lots reportés : 1b et 5** (1b : création de société ou d'exercice ; 5 : clôture annuelle, ouverture du nouvel exercice) : ils nécessitent le catalogue.
+> - **AMB-038 ouverte, reportée** (traçage du catalogue, environnement TEST isolé). À étudier avant les lots 1b et 5, ou plus tôt si la date de modification du catalogue de production change pendant S-000. Rien n'est codé.
+> - Documents mis à jour : `GUIDE_INSTALLATION.md` §2 bis (préparation du dossier TEST, contrôle de la date du catalogue avant/après S-000), `GUIDE_COMPTABLE.md` (choix de « ZZ-TEST TRACEUR » dans la liste des sociétés, plus de raccourci), `docs/architectures.md` (§0, §4, §6, §9, §12), `SUIVI_AMBIGUITES.md` (AMB-038), `BILAN_V1.md`.
+> - **Précisions (2026-10-04, 2e décision).** (1) **Lot 1 découpé** : 1a actif (S-000 inchangée), 1b reporté (AMB-038). **Réserve :** si la date de `catalogue.mdb` change pendant S-000 **ou une fiche du lot 1a** (plan comptable éventuellement partagé), le lot 1a passe en reporté. (2) **Emplacement du dossier TEST** : préféré = sous-dossier séparé (`chemins_interdits` = dossier de production entier) ; sinon même dossier que la production (`chemins_interdits` = catalogue + chaque dossier réel, un par un, avec rappel d'y ajouter tout nouveau dossier de production) ; choix à l'étape 2 du guide d'installation. (3) **Repère** = ce que le logiciel affiche réellement à l'étape 3 ; si le nom de la société réelle apparaît, le renommer dans le dossier TEST via les paramètres société **avant** l'instantané de référence ; sinon le repère est le nom choisi dans la liste. (4) Ajouts validés : confidentialité des données réelles, témoin d'ouverture sans saisie, déclaration avant la mesure.
+> - **Mise à jour documentaire (2026-10-04, carte des écrans et pont GC).** Ajout de `docs/CARTE_ECRANS.md` (référence des codes d'écran et de `capture_ref`). AMB-038 élargie au traçage multi-bases (catalogue + base GC SQL Server `GC_TEST`) ; nouvelle AMB-039 (captures et mot de passe de E-7.08). Règles de sécurité du pont ajoutées à `CLAUDE.md` et à `GUIDE_INSTALLATION.md` §2 ter ; fiches E-2.07.x interdites. Hors périmètre : imports Excel E-7.12/13/14/16 et blocs génériques de E-7.08. Aucun code.
+> - **Précisions pont GC (2026-10-04, 3e décision).** Réinitialisation de `GC_TEST` hors Traceur (script manuel `outils/restaurer_gc_test`, à écrire plus tard, refuse tout autre nom de base, hors heures de travail) ; **login SQL dédié en lecture seule** (`traceur_ro`, `db_datareader` sur `GC_TEST`), pas d'authentification Windows ; instantané du dossier TEST repris après E-7.08 ; option 3 d'abord. **AMB-039 close** (E-7.08 jamais ouvert à Début ni à Fin). AMB-038 reste ouverte, reportée, non codée.
+
+---
+
+## Retour de la première trace réelle S-201 (AMB-041, AMB-042) — hors jalons V1
+- [x] 041.1 `espaces_fin` (F6 + écarts §7.4) · 041.2 bruit de `copie` + `tables_ignorees_analyse` · 041.3 `compteur` sans montants · 041.4 `cumul_hierarchique`
+- [x] 042 `traceur.exe --reanalyser <trace.json>` (réanalyse hors ligne) + jeu de test anonymisé
+- [x] Acceptation sur la trace réelle locale **et** sur `tests/data/trace_S201_anonymisee.json` : plus d'écart Document/Libellé, plus de copie triviale ni de « Table des erreurs », plus de « compteur » sur les montants, `cumul_hierarchique` sur 61263, 34552 et 441110024.
+
+> 2026-10-10 — Décisions AMB-041/042/043 enregistrées et implémentées. À rebuilder localement (`outils/construire_exe.py`) avant de recopier `traceur.exe` sur PC03 ; `config.json` et les fiches du poste ne changent pas.
+

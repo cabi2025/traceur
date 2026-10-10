@@ -11,3 +11,14 @@ __pycache__/
 build/
 dist/
 *.spec
+journal.log
+diagnostic_sorties/
+config_*.json
+traces_locales/
+donnees_locales/
+
+# Données comptables réelles : jamais versionnées (seuls les .gitkeep le sont)
+donnees_reelles/**
+!donnees_reelles/
+!donnees_reelles/S-201/
+!donnees_reelles/S-201/.gitkeep

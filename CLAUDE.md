@@ -16,6 +16,7 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 | `JALONS.md` | Jalons à franchir dans l'ordre, avec critères d'acceptation |
 | `SUIVI_AMBIGUITES.md` | Registre des ambiguïtés |
 | `docs/formats/` | Formats d'entrée et de sortie (exemples de référence) |
+| `docs/CARTE_ECRANS.md` | Carte des écrans du logiciel « Compta PLus » (codes E-x.yy.zz, risques, priorisation des fiches, pont gestion commerciale). Référence pour `capture_ref` et tout libellé d'écran |
 
 ## Protocole de travail (strict)
 1. **Les jalons se font dans l'ordre.** Un jalon est terminé quand **tous** ses critères d'acceptation passent. Arrête-toi alors, fais un compte rendu et attends **GO** avant le jalon suivant.
@@ -26,6 +27,7 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
    - Une ambiguïté n'est close qu'avec une **décision explicite de l'utilisateur**, recopiée dans le registre.
 3. **Pas de fonctionnalité hors périmètre.** Les fonctions marquées « V2 » dans la SPEC ne doivent pas être codées en V1. Prévois seulement les points d'extension décrits.
 4. Mets `JALONS.md` à jour (cases cochées, date, remarques) à la fin de chaque jalon.
+5. Tout compte rendu de jalon commence par : nombre de tests pytest verts / échoués, résultat de mypy --strict.
 
 ## Règles de sécurité (non négociables)
 - Le traceur **n'écrit jamais** dans la base tracée. Il l'ouvre **en lecture seule**.
@@ -34,6 +36,15 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 - Aucune donnée réelle n'est versionnée dans le dépôt. `.gitignore` exclut `*.mdb`, `*.ldb`, `*.mdw`, `sorties/` et `config.json`.
 - Les mots de passe ne sont **jamais** journalisés ni écrits dans les rapports.
 
+### Pont gestion commerciale (GC, SQL Server) — règles posées le 2026-10-04 (rien n'est codé)
+- Le paramétrage du pont (écran **E-7.08**) ne se modifie **jamais** dans la comptabilité de production.
+- Préparation TEST, **dans cet ordre** : (1) copier la base GC 2026 en `GC_TEST` ; (2) copier le dossier compta ; (3) **dans le dossier TEST uniquement**, régler E-7.08 sur `GC_TEST` / 2026, en **vérifiant la barre de titre avant de valider** ; (4) prendre les instantanés de référence (dossier TEST et sauvegarde de `GC_TEST`).
+- Les fiches **E-2.07.x** sont **interdites** tant que `GC_TEST` n'existe pas et que le traçage multi-bases (AMB-038) n'est pas livré.
+- Serveur SQL `192.168.16.99` : **jamais de redémarrage**. L'accès du traceur est limité à `GC_TEST`, en **lecture seule**. Les bases GC de production sont **interdites** (équivalent SQL Server de `chemins_interdits`).
+- **Login SQL dédié en lecture seule** : le traceur se connecte à SQL Server avec un **login SQL dédié** (ex. `traceur_ro`), rôle `db_datareader` sur `GC_TEST` **uniquement**, aucun droit sur les autres bases. Il n'utilise **jamais l'authentification Windows** : le compte Windows du comptable a des droits d'écriture sur la GC de production. Le mot de passe est dans `config.json` et **masqué partout** (mêmes règles que les mots de passe Access). La lecture seule est ainsi garantie par le serveur, pas seulement par le code.
+- **Réinitialisation de `GC_TEST` : hors du traceur.** Elle se fait par un script séparé (`outils/restaurer_gc_test`, à écrire plus tard), lancé manuellement, **hors des heures de travail**, qui **refuse toute base dont le nom n'est pas exactement `GC_TEST`**.
+- Les **captures de E-7.08 masquent le champ mot de passe** ; E-7.08 n'est **jamais ouvert à Début ni à Fin** d'une fiche (les captures automatiques ne masquent rien).
+
 ## Stack (décidée — voir SPEC §3)
 - Python 3.11+ **32 bits**, `pyodbc`, Tkinter, Pillow, PyInstaller (un seul `.exe`).
 - Tests : `pytest`. Le moteur de diff est testé **sans** Access, via une source de données abstraite (voir SPEC §6.1).
@@ -41,5 +52,6 @@ La vue d'ensemble du projet est dans `docs/architectures.md`. La spécification 
 ## Conventions
 - Code, noms de variables et commentaires en **français** pour le domaine (`fiche`, `instantane`, `ecart`). Les termes techniques standard restent en anglais.
 - Typage (`mypy --strict` sur `traceur/moteur/`).
+- Les codes d'écran (`E-x.yy.zz`) de `docs/CARTE_ECRANS.md` servent de `capture_ref` et de libellés d'écran dans les fiches, traces et rapports.
 - Tous les fichiers produits sont en **UTF-8**. Les textes lus depuis le `.mdb` sont décodés selon la page de code configurée (défaut `cp1252`).
 - Les dates sont écrites en ISO 8601 et les montants comme des chaînes décimales exactes, jamais comme des flottants.

@@ -1,0 +1,28 @@
+{
+  "format_version": "1.0",
+  "lot": 0,
+  "fiches": [
+    {
+      "id": "S-000",
+      "titre": "Validation du poste : une saisie simple (à faire deux fois)",
+      "lot": 0,
+      "duree_min": 5,
+      "prerequis": [
+        "Logiciel de comptabilité ouvert sur la base de TEST",
+        "Base de TEST réinitialisée (bouton « Réinitialiser la base »)"
+      ],
+      "reinitialiser_avant": true,
+      "etapes": [
+        { "n": 1, "texte": "Dans le logiciel, ouvrir l'écran de création d'un tiers (client ou fournisseur)", "capture_ref": "001" },
+        { "n": 2, "texte": "Saisir le nom : TEST-S000. Laisser les autres champs vides ou à leur valeur par défaut" },
+        { "n": 3, "texte": "Enregistrer, puis fermer l'écran" }
+      ],
+      "valeurs_saisies": [
+        { "champ_ecran": "Nom", "ecran": "001", "valeur": "TEST-S000", "type": "texte" }
+      ],
+      "a_noter": [
+        "Message éventuel affiché par le logiciel après l'enregistrement"
+      ]
+    }
+  ]
+}
